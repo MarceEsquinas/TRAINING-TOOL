@@ -50,7 +50,7 @@ export async function getFeedbackById(req, res) {
 // Controlador para crear un nuevo registro de feedback.
 export async function postFeedback(req, res) {
   try {
-    const { semana_id, completada = true, motivo_no_completada, sensaciones, molestias, comentario } = req.body;
+    const { semana_id, completada = true, motivo_no_completada, sensaciones, molestias, ritmo_rodaje } = req.body;
 
     if (!semana_id) {
       return res.status(400).json({
@@ -68,7 +68,7 @@ export async function postFeedback(req, res) {
 
     const sql = `
       INSERT INTO feedback_semanal
-      (semana_id, completada, motivo_no_completada, sensaciones, molestias, comentario)
+      (semana_id, completada, motivo_no_completada, sensaciones, molestias, ritmo_rodaje)
       VALUES ($1, $2, $3, $4, $5, $6)
       RETURNING *;
     `;
@@ -79,7 +79,7 @@ export async function postFeedback(req, res) {
       motivo_no_completada || null,
       sensaciones || null,
       molestias || null,
-      comentario || null,
+      ritmo_rodaje || null,
     ];
 
     const result = await query(sql, params);
@@ -103,7 +103,7 @@ export async function postFeedback(req, res) {
 export async function updateFeedbackById(req, res) {
   try {
     const { id } = req.params;
-    const { semana_id, completada, motivo_no_completada, sensaciones, molestias, comentario } = req.body;
+    const { semana_id, completada, motivo_no_completada, sensaciones, molestias, ritmo_rodaje } = req.body;
 
     if (completada === false && (!motivo_no_completada || String(motivo_no_completada).trim() === '')) {
       return res.status(400).json({
@@ -136,9 +136,9 @@ export async function updateFeedbackById(req, res) {
       fields.push(`molestias = $${idx++}`);
       params.push(molestias || null);
     }
-    if (comentario !== undefined) {
-      fields.push(`comentario = $${idx++}`);
-      params.push(comentario || null);
+    if (ritmo_rodaje !== undefined) {
+      fields.push(`ritmo_rodaje = $${idx++}`);
+      params.push(ritmo_rodaje || null);
     }
 
     if (fields.length === 0) {

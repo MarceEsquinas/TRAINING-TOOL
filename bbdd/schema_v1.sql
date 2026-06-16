@@ -180,7 +180,7 @@ CREATE TABLE feedback_semanal (
     motivo_no_completada VARCHAR(255),
     sensaciones TEXT,
     molestias TEXT,
-    comentario TEXT,
+    ritmo_rodaje TEXT,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     
@@ -200,7 +200,7 @@ COMMENT ON COLUMN feedback_semanal.completada IS 'true si la semana se completó
 COMMENT ON COLUMN feedback_semanal.motivo_no_completada IS 'Motivo de no completarla (enfermedad, lesión, etc)';
 COMMENT ON COLUMN feedback_semanal.sensaciones IS 'Sensaciones generales del atleta durante la semana';
 COMMENT ON COLUMN feedback_semanal.molestias IS 'Molestias físicas reportadas';
-COMMENT ON COLUMN feedback_semanal.comentario IS 'Comentario libre del atleta';
+COMMENT ON COLUMN feedback_semanal.ritmo_rodaje IS 'Ritmo medio en rodaje reportado por el atleta';
 
 CREATE INDEX idx_feedback_semana_id ON feedback_semanal(semana_id);
 

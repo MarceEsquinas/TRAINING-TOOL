@@ -129,7 +129,7 @@
     │ descripcion │  │ motivo_no_completada │
     │ km_plan     │  │ sensaciones          │
     │ created_at  │  │ molestias            │
-    └─────────────┘  │ comentario           │
+    └─────────────┘  │ ritmo_rodaje         │
                      │ created_at, updated_at│
                      └──────────────────────┘
 ```
@@ -305,7 +305,7 @@ CREATE TABLE feedback_semanal (
     motivo_no_completada VARCHAR(255),
     sensaciones TEXT,
     molestias TEXT,
-    comentario TEXT,
+    ritmo_rodaje TEXT,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     

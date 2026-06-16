@@ -166,7 +166,7 @@ SELECT
         'motivo_no_completada', fb.motivo_no_completada,
         'sensaciones', fb.sensaciones,
         'molestias', fb.molestias,
-        'comentario', fb.comentario,
+        'ritmo_rodaje', fb.ritmo_rodaje,
         'created_at', fb.created_at
     ) as feedback,
     s.created_at
@@ -175,7 +175,7 @@ LEFT JOIN sesion_entrenamiento ses ON s.id = ses.semana_id
 LEFT JOIN feedback_semanal fb ON s.id = fb.semana_id
 WHERE s.id = $1
 GROUP BY s.id, fb.id, fb.completada, fb.motivo_no_completada, 
-         fb.sensaciones, fb.molestias, fb.comentario, fb.created_at;
+         fb.sensaciones, fb.molestias, fb.ritmo_rodaje, fb.created_at;
 
 -- ====================================================================
 -- SESIONES DE ENTRENAMIENTO
@@ -224,7 +224,7 @@ SELECT
     fb.motivo_no_completada,
     fb.sensaciones,
     fb.molestias,
-    fb.comentario,
+    fb.ritmo_rodaje,
     fb.created_at,
     fb.updated_at
 FROM feedback_semanal fb
@@ -233,7 +233,7 @@ WHERE fb.semana_id = $1;
 -- 19. Crear o actualizar feedback de una semana
 -- Opción A: Insertar (si no existe)
 INSERT INTO feedback_semanal 
-    (semana_id, completada, motivo_no_completada, sensaciones, molestias, comentario)
+    (semana_id, completada, motivo_no_completada, sensaciones, molestias, ritmo_rodaje)
 VALUES ($1, $2, $3, $4, $5, $6)
 ON CONFLICT (semana_id) 
 DO UPDATE SET
@@ -241,7 +241,7 @@ DO UPDATE SET
     motivo_no_completada = EXCLUDED.motivo_no_completada,
     sensaciones = EXCLUDED.sensaciones,
     molestias = EXCLUDED.molestias,
-    comentario = EXCLUDED.comentario
+    ritmo_rodaje = EXCLUDED.ritmo_rodaje
 RETURNING *;
 
 -- 20. Obtener resumen de feedback del objetivo (últimas 4 semanas)

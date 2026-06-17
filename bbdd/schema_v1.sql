@@ -148,6 +148,10 @@ CREATE TABLE sesion_entrenamiento (
     orden VARCHAR(50) NOT NULL DEFAULT '1',
     descripcion TEXT NOT NULL,
     kilometros_planificados NUMERIC(5, 2),
+    kilometros_realizados NUMERIC(6, 2),
+    realizada BOOLEAN NOT NULL DEFAULT false,
+    fecha_realizada DATE,
+    registrado_por VARCHAR(100),
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     
@@ -161,6 +165,10 @@ COMMENT ON COLUMN sesion_entrenamiento.semana_id IS 'FK a semana_entrenamiento (
 COMMENT ON COLUMN sesion_entrenamiento.orden IS 'Orden de la sesión dentro de la semana; no hay fecha fija para mayor flexibilidad';
 COMMENT ON COLUMN sesion_entrenamiento.descripcion IS 'Descripción libre: "60 min Z2", "12 km suaves", "20 cal + 6x1000 + 10 enfr"';
 COMMENT ON COLUMN sesion_entrenamiento.kilometros_planificados IS 'Km planificados para la sesión';
+COMMENT ON COLUMN sesion_entrenamiento.kilometros_realizados IS 'Km reales realizados en la sesión (registro manual)';
+COMMENT ON COLUMN sesion_entrenamiento.realizada IS 'Marca si la sesión fue completada/relevada';
+COMMENT ON COLUMN sesion_entrenamiento.fecha_realizada IS 'Fecha en que la sesión fue realizada';
+COMMENT ON COLUMN sesion_entrenamiento.registrado_por IS 'Usuario que registró la realización (athlete/coach)';
 
 CREATE INDEX idx_sesion_semana_id ON sesion_entrenamiento(semana_id);
 CREATE INDEX idx_sesion_semana_orden ON sesion_entrenamiento(semana_id, orden);
@@ -203,6 +211,67 @@ COMMENT ON COLUMN feedback_semanal.molestias IS 'Molestias físicas reportadas';
 COMMENT ON COLUMN feedback_semanal.comentario IS 'Comentario libre del atleta';
 
 CREATE INDEX idx_feedback_semana_id ON feedback_semanal(semana_id);
+
+-- ====================================================================
+-- TABLA: notificacion_feedback
+-- Descripción: Eventos de notificación cuando un atleta envía feedback (marca para el entrenador)
+-- ====================================================================
+
+CREATE TABLE notificacion_feedback (
+    id SERIAL PRIMARY KEY,
+    tipo VARCHAR(50) NOT NULL DEFAULT 'feedback_enviado',
+    atleta_id INTEGER NOT NULL,
+    objetivo_id INTEGER,
+    semana_id INTEGER,
+    fecha_envio TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    resumen TEXT,
+    leido BOOLEAN NOT NULL DEFAULT false,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_notif_atleta FOREIGN KEY (atleta_id)
+        REFERENCES atleta(id) ON DELETE CASCADE,
+    CONSTRAINT fk_notif_objetivo FOREIGN KEY (objetivo_id)
+        REFERENCES objetivo(id) ON DELETE SET NULL,
+    CONSTRAINT fk_notif_semana FOREIGN KEY (semana_id)
+        REFERENCES semana_entrenamiento(id) ON DELETE SET NULL
+);
+
+COMMENT ON TABLE notificacion_feedback IS 'Notificaciones para entrenador cuando se envía feedback (manual read)';
+COMMENT ON COLUMN notificacion_feedback.tipo IS 'Tipo de evento (ej: feedback_enviado)';
+COMMENT ON COLUMN notificacion_feedback.resumen IS 'Resumen corto del feedback para mostrar en la lista de notificaciones';
+
+CREATE INDEX idx_notif_atleta_id ON notificacion_feedback(atleta_id);
+CREATE INDEX idx_notif_leido ON notificacion_feedback(leido);
+CREATE INDEX idx_notif_fecha_envio ON notificacion_feedback(fecha_envio DESC);
+
+-- Función y trigger: crear notificación al insertar feedback_semanal
+CREATE OR REPLACE FUNCTION fn_notify_feedback_insert()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_objetivo_id INTEGER;
+    v_atleta_id INTEGER;
+    v_resumen TEXT;
+BEGIN
+    -- Obtener objetivo y atleta a partir de la semana
+    SELECT objetivo_id INTO v_objetivo_id FROM semana_entrenamiento WHERE id = NEW.semana_id;
+    IF v_objetivo_id IS NOT NULL THEN
+        SELECT atleta_id INTO v_atleta_id FROM objetivo WHERE id = v_objetivo_id;
+    END IF;
+
+    v_resumen := COALESCE(NEW.sensaciones,'') || CASE WHEN NEW.molestias IS NOT NULL THEN ' | Molestias: ' || NEW.molestias ELSE '' END;
+
+    INSERT INTO notificacion_feedback (tipo, atleta_id, objetivo_id, semana_id, fecha_envio, resumen, leido)
+    VALUES ('feedback_enviado', v_atleta_id, v_objetivo_id, NEW.semana_id, CURRENT_TIMESTAMP, v_resumen, false);
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_notify_feedback_insert
+    AFTER INSERT ON feedback_semanal
+    FOR EACH ROW
+    EXECUTE FUNCTION fn_notify_feedback_insert();
 
 -- ====================================================================
 -- ÍNDICES ADICIONALES PARA OPTIMIZACIÓN

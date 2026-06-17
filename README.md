@@ -34,7 +34,7 @@ Además de ser una herramienta útil para el entrenamiento, este proyecto tiene 
 ### Backend
 
 - Node.js
-- Express (pendiente de implementación)
+- Express 
 
 ### Frontend
 
@@ -84,40 +84,245 @@ Puede:
 - SesionEntrenamiento
 - FeedbackSemanal
 
+## Casos de Uso
+
+### 1. Dashboard del Entrenador ✅ Completado
+Ver [docs/caso_de_uso_dashboard.md](docs/caso_de_uso_dashboard.md) para descripción completa.
+
+**Propósito**: Pantalla principal que muestra el estado de todos los atletas, notificaciones y atletas que requieren atención en menos de 10 segundos.
+
+**Flujo resumido**:
+1. Entrenador abre app → GET /dashboard
+2. Ve resumen de KPIs (atletas, feedback nuevos, planificaciones pendientes, objetivos próximos)
+3. Revisa notificaciones de feedback enviado
+4. Consulta lista de atletas priorizada por urgencia
+5. Marca notificaciones como leídas → PATCH /notifications/:id/read
+
+---
+
 ## Documentación adicional
 
+- `docs/caso_de_uso_dashboard.md`: Caso de uso completo del Dashboard (reglas, flujos, datos)
+- `docs/mapa_casos_uso.md`: **Roadmap de próximos casos de uso** - análisis y recomendaciones
 - `docs/semana_entrenamiento.md`: descripción de la entidad `SemanaEntrenamiento` y la regla futura de automatización de fechas.
 - `docs/sesion_entrenamiento.md`: descripción de la entidad `SesionEntrenamiento` y el comportamiento actual del CRUD.
+- `bbdd/schema_v1.sql`: Definición completa del esquema PostgreSQL con comentarios
+- `bbdd/queries_dashboard.sql`: Consultas SQL del Dashboard (referencia)
 
 ---
 
-## Estado actual
+## API REST Implementada
 
-### Completado
+### Endpoints de Dashboard
 
-- Análisis del negocio.
-- Definición de requisitos funcionales.
-- Diseño conceptual de la base de datos.
-- Modelo relacional inicial.
-- Diseño de entidades y relaciones.
+#### GET /dashboard
+Obtiene el estado completo del dashboard con resumen, notificaciones y atletas priorizado.
 
-### Pendiente
+**Parámetros query**:
+- `limit` (int, default: 50) — Máximo de atletas a devolver
+- `offset` (int, default: 0) — Paginación
 
-- Configuración del backend.
-- Configuración del frontend.
-- Implementación de PostgreSQL.
-- Autenticación y autorización.
-- Desarrollo de API REST.
-- Desarrollo de interfaz de usuario.
-- Despliegue de la aplicación.
+**Ejemplo de respuesta**:
+```json
+{
+  "success": true,
+  "summary": {
+    "num_atletas_activos": 12,
+    "num_feedback_nuevos": 3,
+    "num_planificaciones_pendientes": 2,
+    "num_objetivos_proximos": 1
+  },
+  "notifications": [
+    {
+      "id": 42,
+      "tipo": "feedback_enviado",
+      "atleta_id": 5,
+      "atleta_nombre": "Juan Pérez",
+      "objetivo_nombre": "Media maratón 1:45",
+      "semana_id": 87,
+      "fecha_envio": "2026-06-17T19:30:00Z",
+      "resumen": "Sensaciones buenas | Molestias: ninguna",
+      "leido": false
+    }
+  ],
+  "atletas": [
+    {
+      "atleta_id": 5,
+      "nombre": "Juan Pérez",
+      "objetivo_nombre": "Media maratón 1:45",
+      "dias_hasta_objetivo": 24,
+      "semana_id": 87,
+      "semana_fecha_inicio": "2026-06-16",
+      "semana_fecha_fin": "2026-06-22",
+      "km_planificados_semana": 65.5,
+      "km_realizados_semana": 42.3,
+      "estado_prioritario": "planificacion_pendiente",
+      "razon_estado": "faltan 2 dias y 0 sesiones planificadas"
+    }
+  ]
+}
+```
+
+#### PATCH /notifications/:id/read
+Marca una notificación como leída por el entrenador.
+
+**Ejemplo**:
+```bash
+PATCH /notifications/42/read
+```
+
+**Respuesta**:
+```json
+{
+  "success": true,
+  "data": {
+    "id": 42,
+    "leido": true,
+    "updated_at": "2026-06-17T19:35:00Z"
+  }
+}
+```
 
 ---
 
-## Filosofía del proyecto
-La aplicación se está desarrollando siguiendo una premisa sencilla:
+## 🚀 Instalación y Arranque
 
-> Resolver un problema real con una solución simple, escalable y mantenible.
-Se prioriza construir una primera versión funcional antes de incorporar características más avanzadas como estadísticas, integraciones externas o automatizaciones.
+### Requisitos previos
+- Node.js (v16+)
+- PostgreSQL (v12+)
+- npm
+
+### 1. Clonar el repositorio
+
+```bash
+git clone https://github.com/tu-usuario/training-tool.git
+cd training-tool
+```
+
+### 2. Configurar la base de datos
+
+```bash
+# Crear base de datos
+psql -U postgres
+CREATE DATABASE training_tool;
+\c training_tool
+\i bbdd/schema_v1.sql
+```
+
+### 3. Configurar variables de entorno
+
+Copia el archivo `.env.example` a `.env` y configura tus valores:
+
+```bash
+cd backend
+cp .env.example .env
+```
+
+Edita `.env` con tus credenciales de BD y configuración local:
+
+```env
+DB_USER=tu_usuario_postgres
+DB_PASSWORD=tu_contraseña
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=training_tool
+PORT=3000
+NODE_ENV=development
+```
+
+**Nota:** `.env` está en `.gitignore` — nunca commitees credenciales reales.
+
+### 4. Instalar dependencias
+
+```bash
+cd backend
+npm install
+```
+
+### 5. Arrancar servidor
+
+```bash
+npm start
+```
+
+O en modo desarrollo con hot-reload:
+
+```bash
+npm run dev
+```
+
+Servidor escuchando en `http://localhost:3000`
+
+### 6. Probar endpoints
+
+```bash
+# Test de dashboard
+curl http://localhost:3000/dashboard
+
+# Test de base de datos
+curl http://localhost:3000/test-db
+```
+
+---
+
+## Estado Actual
+
+### ✅ Completado
+
+- ✓ Análisis del negocio y requisitos funcionales
+- ✓ Diseño conceptual y modelo relacional (PostgreSQL)
+- ✓ Esquema DB con constraints, triggers, vistas
+- ✓ Backend básico con Express
+- ✓ API REST CRUD para todas las entidades
+- ✓ **Caso de uso: Dashboard del Entrenador**
+  - ✓ Cálculo de prioridades por atleta
+  - ✓ Notificaciones de feedback automáticas
+  - ✓ Endpoints GET /dashboard y PATCH /notifications/:id/read
+  - ✓ Documentación completa
+
+### ⏳ Pendiente
+
+- Frontend (React) — Interfaces para dashboard, planificación, feedback
+- Autenticación JWT / sesiones
+- Autorización y roles (Entrenador vs Atleta)
+- Caso de uso: Planificación de semana de entrenamiento
+- Caso de uso: Registro de sesiones realizadas
+- Caso de uso: Análisis de adherencia y carga
+- Validaciones de entrada (backend)
+- Tests unitarios e integración
+- Despliegue (Docker, servidor)
+
+---
+
+---
+
+## 🏗️ Arquitectura
+
+### Flujo de Diseño: Casos de Uso Primero
+
+Cada funcionalidad se desarrolla siguiendo este flujo:
+
+1. **Diseño de Caso de Uso**: Análisis de reglas de negocio, flujos y decisiones
+2. **Definición de Datos**: Cambios en BD (nuevas columnas, tablas, triggers)
+3. **Shape de API**: Estructura JSON de respuesta
+4. **Consultas SQL**: Lógica optimizada en BD
+5. **Controller + Route**: Implementación en Express
+6. **Documentación**: Archivo en `docs/` detallando el caso de uso
+
+**Beneficio**: Separación clara entre lógica de negocio (BD) y API, facilitando cambios y testing.
+
+---
+
+## 🧭 Filosofía del Proyecto
+
+La aplicación se está desarrollando siguiendo estas premisas:
+
+> **Resolver un problema real con una solución simple, escalable y mantenible.**
+
+- Se prioriza construir una primera versión funcional antes de características avanzadas
+- **Casos de uso orientan el desarrollo**, no especificaciones técnicas genéricas
+- Decisiones de diseño están documentadas y justificadas
+- Performance se optimiza cuando hay evidencia de problema, no especulación
 
 ---
 

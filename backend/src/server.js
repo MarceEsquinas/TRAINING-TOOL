@@ -1,13 +1,13 @@
 import express from 'express';
-import atletasRoute from './routes/atletasRoute.js';
-import objetivoRoute from './routes/objetivoRoute.js';
-import semanaEntrenamientoRoute from './routes/semanaEntrenamientoRoute.js';
-import sesionEntrenamientoRoute from './routes/sesionEntrenamientoRoute.js';
-import usuarioRoute from './routes/usuarioRoute.js';
-import feedbackRoute from './routes/feedbackRoute.js';
-import dashboardRoute from './routes/dashboardRoute.js';
-import notificacionRoute from './routes/notificacionRoute.js';
-import planificacionRoute from './routes/planificacionRoute.js';
+import atletasRoute from './routes/crud/atletasRoute.js';
+import objetivoRoute from './routes/crud/objetivoRoute.js';
+import semanaEntrenamientoRoute from './routes/crud/semanaEntrenamientoRoute.js';
+import sesionEntrenamientoRoute from './routes/crud/sesionEntrenamientoRoute.js';
+import usuarioRoute from './routes/crud/usuarioRoute.js';
+import feedbackRoute from './routes/crud/feedbackRoute.js';
+import dashboardRoute from './routes/business/dashboardRoute.js';
+import notificacionRoute from './routes/business/notificacionRoute.js';
+import planificacionRoute from './routes/business/planificacionRoute.js';
 
 const app = express();
 const PORT = 3000;
@@ -21,8 +21,9 @@ app.use('/', objetivoRoute);
 app.use('/', usuarioRoute);
 app.use('/', semanaEntrenamientoRoute);
 app.use('/', sesionEntrenamientoRoute);
-// Rutas de negocio: responden a pantallas/casos de uso de la aplicación.
 app.use('/', feedbackRoute);
+
+// Rutas de negocio: responden a pantallas/casos de uso de la aplicación.
 app.use('/', dashboardRoute);
 app.use('/', notificacionRoute);
 app.use('/', planificacionRoute);

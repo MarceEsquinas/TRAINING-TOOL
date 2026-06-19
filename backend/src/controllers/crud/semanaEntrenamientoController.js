@@ -1,0 +1,1 @@
+export * from '../../semanaEntrenamientoController.js';

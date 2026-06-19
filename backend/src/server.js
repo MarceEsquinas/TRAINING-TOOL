@@ -5,9 +5,9 @@ import semanaEntrenamientoRoute from './routes/crud/semanaEntrenamientoRoute.js'
 import sesionEntrenamientoRoute from './routes/crud/sesionEntrenamientoRoute.js';
 import usuarioRoute from './routes/crud/usuarioRoute.js';
 import feedbackRoute from './routes/crud/feedbackRoute.js';
-import dashboardRoute from './routes/business/dashboardRoute.js';
-import notificacionRoute from './routes/business/notificacionRoute.js';
-import planificacionRoute from './routes/business/planificacionRoute.js';
+import dashboardRoute from './routes/negocio/dashboardRoute.js';
+import notificacionRoute from './routes/negocio/notificacionRoute.js';
+import planificacionRoute from './routes/negocio/planificacionRoute.js';
 
 const app = express();
 const PORT = 3000;

@@ -1,5 +1,5 @@
 import express from 'express';
-import { getPlanificacionAtleta } from '../../controllers/business/planificacionController.js';
+import { getPlanificacionAtleta } from '../../controllers/negocio/planificacionController.js';
 
 const router = express.Router();
 

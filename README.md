@@ -103,11 +103,6 @@ Ver [docs/caso_de_uso_dashboard.md](docs/caso_de_uso_dashboard.md) para descripc
 ## Documentación adicional
 
 - `docs/caso_de_uso_dashboard.md`: Caso de uso completo del Dashboard (reglas, flujos, datos)
-- `docs/mapa_casos_uso.md`: **Roadmap de próximos casos de uso** - análisis y recomendaciones
-- `docs/semana_entrenamiento.md`: descripción de la entidad `SemanaEntrenamiento` y la regla futura de automatización de fechas.
-- `docs/sesion_entrenamiento.md`: descripción de la entidad `SesionEntrenamiento` y el comportamiento actual del CRUD.
-- `bbdd/schema_v1.sql`: Definición completa del esquema PostgreSQL con comentarios
-- `bbdd/queries_dashboard.sql`: Consultas SQL del Dashboard (referencia)
 
 ---
 
@@ -224,9 +219,9 @@ Edita `.env` con tus credenciales de BD y configuración local:
 DB_USER=tu_usuario_postgres
 DB_PASSWORD=tu_contraseña
 DB_HOST=localhost
-DB_PORT=5432
+DB_PORT=
 DB_NAME=training_tool
-PORT=3000
+PORT=
 NODE_ENV=development
 ```
 

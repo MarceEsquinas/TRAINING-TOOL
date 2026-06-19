@@ -1,4 +1,4 @@
-girt# Training Tool
+# Training Tool
 
 ## Descripción
 Training Tool es una aplicación web orientada a la gestión de entrenamientos de atletas amateurs muy enfocada a la adaptación de la persona.
@@ -98,17 +98,30 @@ Ver [docs/caso_de_uso_dashboard.md](docs/caso_de_uso_dashboard.md) para descripc
 4. Consulta lista de atletas priorizada por urgencia
 5. Marca notificaciones como leídas → PATCH /notifications/:id/read
 
+### 2. Planificación del Atleta ✅ Completado (Backend)
+Ver [docs/caso_de_uso_planificacion.md](docs/caso_de_uso_planificacion.md) para descripción completa.
+
+**Propósito**: Vista de un atleta concreto para decidir su planificación semanal con contexto mínimo y accionable.
+
+**Flujo resumido**:
+1. Entrenador selecciona atleta desde dashboard
+2. Frontend llama GET /planificacion/:atletaId
+3. API devuelve atleta, objetivo activo, semana actual o próxima y sesiones
+4. Entrenador revisa km planificados vs realizados
+5. Entrenador decide modificar planificación o crear siguiente semana
+
 ---
 
 ## Documentación adicional
 
 - `docs/caso_de_uso_dashboard.md`: Caso de uso completo del Dashboard (reglas, flujos, datos)
+- `docs/caso_de_uso_planificacion.md`: Caso de uso completo de Planificación del Atleta
 
 ---
 
 ## API REST Implementada
 
-### Endpoints de Dashboard
+### Endpoints de Negocio
 
 #### GET /dashboard
 Obtiene el estado completo del dashboard con resumen, notificaciones y atletas priorizado.
@@ -177,6 +190,47 @@ PATCH /notifications/42/read
   }
 }
 ```
+
+#### GET /planificacion/:atletaId
+Obtiene la información necesaria para planificar el entrenamiento de un atleta concreto.
+
+**Respuesta**:
+```json
+{
+  "success": true,
+  "data": {
+    "atleta": {
+      "id": 5,
+      "nombre": "Juan Pérez"
+    },
+    "objetivo": {
+      "id": 12,
+      "nombre": "Media maratón 1:45",
+      "fecha_objetivo": "2026-07-20",
+      "dias_hasta_objetivo": 31
+    },
+    "semana": {
+      "id": 87,
+      "fecha_inicio": "2026-06-16",
+      "fecha_fin": "2026-06-22",
+      "total_sesiones": 4,
+      "km_planificados_semana": 65.5,
+      "km_realizados_semana": 24.0
+    },
+    "sesiones": []
+  }
+}
+```
+
+### Endpoints CRUD
+
+CRUD implementado para:
+- `/atletas`
+- `/objetivos`
+- `/usuarios`
+- `/semanasEntrenamiento`
+- `/sesionesEntrenamiento`
+- `/feedback`
 
 ---
 
@@ -254,8 +308,8 @@ Servidor escuchando en `http://localhost:3000`
 # Test de dashboard
 curl http://localhost:3000/dashboard
 
-# Test de base de datos
-curl http://localhost:3000/test-db
+# Test de planificación
+curl http://localhost:3000/planificacion/1
 ```
 
 ---
@@ -274,13 +328,17 @@ curl http://localhost:3000/test-db
   - ✓ Notificaciones de feedback automáticas
   - ✓ Endpoints GET /dashboard y PATCH /notifications/:id/read
   - ✓ Documentación completa
+- ✓ **Caso de uso: Planificación del Atleta (Backend)**
+  - ✓ Endpoint GET /planificacion/:atletaId
+  - ✓ Respuesta agrupada por caso de uso (atleta, objetivo, semana, sesiones)
+  - ✓ Documentación completa
 
 ### ⏳ Pendiente
 
 - Frontend (React) — Interfaces para dashboard, planificación, feedback
 - Autenticación JWT / sesiones
 - Autorización y roles (Entrenador vs Atleta)
-- Caso de uso: Planificación de semana de entrenamiento
+- Caso de uso: Planificación de semana de entrenamiento (acciones de crear/modificar)
 - Caso de uso: Registro de sesiones realizadas
 - Caso de uso: Análisis de adherencia y carga
 - Validaciones de entrada (backend)
@@ -292,6 +350,13 @@ curl http://localhost:3000/test-db
 ---
 
 ## 🏗️ Arquitectura
+
+Estructura actual del backend:
+
+- `src/routes/crud`: rutas CRUD de entidades
+- `src/routes/negocio`: rutas de casos de uso (dashboard, planificación, notificaciones)
+- `src/controllers/crud`: controladores CRUD
+- `src/controllers/negocio`: controladores de negocio
 
 ### Flujo de Diseño: Casos de Uso Primero
 

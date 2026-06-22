@@ -8,6 +8,7 @@ import feedbackRoute from './routes/crud/feedbackRoute.js';
 import dashboardRoute from './routes/negocio/dashboardRoute.js';
 import notificacionRoute from './routes/negocio/notificacionRoute.js';
 import planificacionRoute from './routes/negocio/planificacionRoute.js';
+import historialAtletaRoute from './routes/negocio/historialAtletaRoute.js';
 
 const app = express();
 const PORT = 3000;
@@ -27,6 +28,7 @@ app.use('/', feedbackRoute);
 app.use('/', dashboardRoute);
 app.use('/', notificacionRoute);
 app.use('/', planificacionRoute);
+app.use('/', historialAtletaRoute);
 
 // Ruta básica existente
 app.get('/', (req, res) => {

@@ -110,12 +110,25 @@ Ver [docs/caso_de_uso_planificacion.md](docs/caso_de_uso_planificacion.md) para 
 4. Entrenador revisa km planificados vs realizados
 5. Entrenador decide modificar planificación o crear siguiente semana
 
+### 3. Historial del Atleta ✅ Completado (Backend)
+Ver [docs/caso_de_uso_historial.md](docs/caso_de_uso_historial.md) para descripción completa.
+
+**Propósito**: Consultar el histórico de un atleta para tomar decisiones de planificación futuras usando datos reales de rendimiento y feedback.
+
+**Flujo resumido**:
+1. Entrenador abre historial de un atleta
+2. Frontend llama GET /historial/atletas/:atletaId
+3. API devuelve objetivos históricos, planificación por objetivo y feedback resumido
+4. Entrenador puede abrir detalle de feedback con GET /historial/feedback/:feedbackId
+5. Entrenador contrasta semanas realizadas para ajustar planificación
+
 ---
 
 ## Documentación adicional
 
 - `docs/caso_de_uso_dashboard.md`: Caso de uso completo del Dashboard (reglas, flujos, datos)
 - `docs/caso_de_uso_planificacion.md`: Caso de uso completo de Planificación del Atleta
+- `docs/caso_de_uso_historial.md`: Caso de uso completo de Historial del Atleta
 
 ---
 
@@ -221,6 +234,21 @@ Obtiene la información necesaria para planificar el entrenamiento de un atleta 
   }
 }
 ```
+
+#### GET /historial/atletas/:atletaId
+Obtiene el historial completo de un atleta: objetivos, planificación histórica y feedback resumido.
+
+#### GET /historial/atletas/:atletaId/objetivos
+Obtiene el historial de objetivos de un atleta.
+
+#### GET /historial/objetivos/:objetivoId/planificacion
+Obtiene el historial de planificación semanal de un objetivo con kilómetros realmente realizados.
+
+#### GET /historial/atletas/:atletaId/feedback
+Obtiene el historial resumido de feedback de un atleta.
+
+#### GET /historial/feedback/:feedbackId
+Obtiene el detalle completo de un feedback concreto.
 
 ### Endpoints CRUD
 
@@ -331,6 +359,10 @@ curl http://localhost:3000/planificacion/1
 - ✓ **Caso de uso: Planificación del Atleta (Backend)**
   - ✓ Endpoint GET /planificacion/:atletaId
   - ✓ Respuesta agrupada por caso de uso (atleta, objetivo, semana, sesiones)
+  - ✓ Documentación completa
+- ✓ **Caso de uso: Historial del Atleta (Backend)**
+  - ✓ Endpoints de historial completo, objetivos, planificación, feedback resumido y detalle
+  - ✓ Planificación histórica basada en kilómetros realizados
   - ✓ Documentación completa
 
 ### ⏳ Pendiente

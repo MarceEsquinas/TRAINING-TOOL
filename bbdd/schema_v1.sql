@@ -35,13 +35,35 @@ COMMENT ON COLUMN usuario.rol IS 'Rol: ADMIN o ATLETA';
 CREATE INDEX idx_usuario_username ON usuario(username);
 
 -- ====================================================================
+-- TABLA: entrenadores
+-- Descripción: Entrenadores con acceso a planificar atletas
+-- ====================================================================
+
+CREATE TABLE entrenadores (
+    id SERIAL PRIMARY KEY,
+    nombre VARCHAR(100) NOT NULL,
+    correo VARCHAR(150) UNIQUE NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+COMMENT ON TABLE entrenadores IS 'Entrenadores del sistema responsables de la planificación';
+COMMENT ON COLUMN entrenadores.nombre IS 'Nombre completo del entrenador';
+COMMENT ON COLUMN entrenadores.correo IS 'Correo único para autenticación del entrenador';
+COMMENT ON COLUMN entrenadores.password_hash IS 'Hash de contraseña del entrenador (bcrypt/argon2)';
+
+CREATE INDEX idx_entrenador_correo ON entrenadores(correo);
+
+-- ====================================================================
 -- TABLA: atleta
--- Descripción: Perfil de atleta con información base y estadísticas
+-- Descripción: Perfil de atleta con información base, estadísticas y asignación de entrenador
 -- ====================================================================
 
 CREATE TABLE atleta (
     id SERIAL PRIMARY KEY,
     usuario_id INTEGER UNIQUE,
+    entrenador_id INTEGER,
     nombre VARCHAR(100) NOT NULL,
     sexo sexo_enum,
     peso NUMERIC(5, 2) CHECK (peso > 0),
@@ -52,11 +74,14 @@ CREATE TABLE atleta (
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     
     CONSTRAINT fk_usuario FOREIGN KEY (usuario_id)
-        REFERENCES usuario(id) ON DELETE SET NULL
+        REFERENCES usuario(id) ON DELETE SET NULL,
+    CONSTRAINT fk_entrenador FOREIGN KEY (entrenador_id)
+        REFERENCES entrenadores(id) ON DELETE SET NULL
 );
 
-COMMENT ON TABLE atleta IS 'Perfil de atleta vinculado a usuario';
+COMMENT ON TABLE atleta IS 'Perfil de atleta vinculado a usuario y entrenador';
 COMMENT ON COLUMN atleta.usuario_id IS 'FK a usuario (NULLABLE para admins sin perfil atleta)';
+COMMENT ON COLUMN atleta.entrenador_id IS 'FK a entrenador responsable de la planificación del atleta';
 COMMENT ON COLUMN atleta.nombre IS 'Nombre completo del atleta';
 COMMENT ON COLUMN atleta.sexo IS 'Sexo biológico';
 COMMENT ON COLUMN atleta.peso IS 'Peso en kg (no puede ser negativo)';
@@ -65,6 +90,7 @@ COMMENT ON COLUMN atleta.km_medios_ultimos_2_meses IS 'Promedio de km/semana en 
 COMMENT ON COLUMN atleta.lesiones_ultimo_anio IS 'JSON array de lesiones: [{"tipo": "...", "fecha": "...", "notas": "..."}]';
 
 CREATE INDEX idx_atleta_usuario_id ON atleta(usuario_id);
+CREATE INDEX idx_atleta_entrenador_id ON atleta(entrenador_id);
 
 -- ====================================================================
 -- TABLA: objetivo

@@ -78,11 +78,14 @@ Puede:
 ## Entidades principales
 
 - Usuario
+- Entrenador
 - Atleta
 - Objetivo
 - SemanaEntrenamiento
 - SesionEntrenamiento
 - FeedbackSemanal
+
+Relación clave del modelo: un entrenador puede planificar múltiples atletas, y cada atleta se asigna mediante `entrenador_id`.
 
 ## Casos de Uso
 

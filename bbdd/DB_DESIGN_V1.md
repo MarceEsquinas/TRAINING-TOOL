@@ -4,7 +4,7 @@
 
 ### ✅ Lo que está bien:
 
-1. **Jerarquía de entidades clara**: Usuario → Atleta → Objetivo → Semanas → Sesiones
+1. **Jerarquía de entidades clara**: Usuario/Entrenador → Atleta → Objetivo → Semanas → Sesiones
 2. **Relaciones bien definidas**: Siguen el dominio del negocio
 3. **FeedbackSemanal 1:1**: Captura el patrón de reflexión post-semana
 4. **Simplicidad**: No sobre-ingeniería para 4-50 atletas
@@ -39,7 +39,12 @@
    - Cambio: Usar ENUM para `rol`, `sexo`
    - Cambio: Usar DATE para fechas de objetivo, TIMESTAMP para creación
 
-7. **Validaciones**:
+7. **Independencia entrenador-atleta**:
+   - Problema: Falta separar atletas por entrenador de forma explícita
+   - Solución: Crear tabla `entrenadores` y FK `entrenador_id` en `atleta`
+   - Cambio: Relación **1:N** entre entrenador y atletas
+
+8. **Validaciones**:
    - Falta: Validación de peso (no negativo)
    - Cambio: Añadir CHECK constraints
 
@@ -48,6 +53,21 @@
 ## 🔄 Diagrama Entidad-Relación (Textual)
 
 ```
+┌─────────────────────────────────────────────────────────────┐
+│                     entrenadores                             │
+├─────────────────────────────────────────────────────────────┤
+│ PK: id                                                        │
+│ nombre NOT NULL                                               │
+│ correo (UNIQUE NOT NULL)                                      │
+│ password_hash NOT NULL                                        │
+│ created_at, updated_at                                        │
+└────────────────────┬────────────────────────────────────────┘
+                     │ 1
+                     │
+                     │ N
+                     │ entrenador_id
+                     │
+                     ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                         usuario                              │
 ├─────────────────────────────────────────────────────────────┤
@@ -68,6 +88,7 @@
 ├─────────────────────────────────────────────────────────────┤
 │ PK: id                                                        │
 │ FK: usuario_id (NULLABLE, UNIQUE)                           │
+│ FK: entrenador_id (NULLABLE)                                │
 │ nombre NOT NULL                                              │
 │ sexo (ENUM: M, F)                                           │
 │ peso (DECIMAL, CHECK > 0)                                   │
@@ -171,12 +192,36 @@ CREATE INDEX idx_usuario_username ON usuario(username);
 
 ---
 
-### 3. Tabla `atleta`
+### 3. Tabla `entrenadores`
+
+```sql
+CREATE TABLE entrenadores (
+   id SERIAL PRIMARY KEY,
+   nombre VARCHAR(100) NOT NULL,
+   correo VARCHAR(150) UNIQUE NOT NULL,
+   password_hash VARCHAR(255) NOT NULL,
+   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Índice para autenticación por correo
+CREATE INDEX idx_entrenador_correo ON entrenadores(correo);
+```
+
+**Decisiones**:
+- Tabla independiente para aislar atletas por entrenador
+- `correo` único para login del entrenador
+- `password_hash`: contraseña hasheada en la aplicación (bcrypt/argon2)
+
+---
+
+### 4. Tabla `atleta`
 
 ```sql
 CREATE TABLE atleta (
     id SERIAL PRIMARY KEY,
     usuario_id INTEGER UNIQUE,
+   entrenador_id INTEGER,
     nombre VARCHAR(100) NOT NULL,
     sexo sexo_enum,
     peso NUMERIC(5, 2) CHECK (peso > 0),
@@ -187,15 +232,21 @@ CREATE TABLE atleta (
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     
     CONSTRAINT fk_usuario FOREIGN KEY (usuario_id)
-        REFERENCES usuario(id) ON DELETE SET NULL
+      REFERENCES usuario(id) ON DELETE SET NULL,
+   CONSTRAINT fk_entrenador FOREIGN KEY (entrenador_id)
+      REFERENCES entrenadores(id) ON DELETE SET NULL
 );
 
 -- Índice para búsquedas por usuario
 CREATE INDEX idx_atleta_usuario_id ON atleta(usuario_id);
+
+-- Índice para búsquedas por entrenador
+CREATE INDEX idx_atleta_entrenador_id ON atleta(entrenador_id);
 ```
 
 **Decisiones**:
 - `usuario_id` NULLABLE y UNIQUE: Un admin no tiene atleta, un atleta tiene un usuario
+- `entrenador_id` NULLABLE: Permite alta de atleta sin asignación inicial de entrenador
 - `peso` NUMERIC(5,2): Hasta 999.99 kg, 2 decimales
 - `dias_disponibles` JSONB: Ejemplo: `["lunes", "martes", "jueves"]`
 - `lesiones_ultimo_anio` JSONB: Ejemplo: `[{"tipo": "tobillo", "fecha": "2025-06", "notas": "..."}]`
@@ -203,7 +254,7 @@ CREATE INDEX idx_atleta_usuario_id ON atleta(usuario_id);
 
 ---
 
-### 4. Tabla `objetivo`
+### 5. Tabla `objetivo`
 
 ```sql
 CREATE TABLE objetivo (
@@ -235,7 +286,7 @@ CREATE UNIQUE INDEX idx_objetivo_activo_por_atleta
 
 ---
 
-### 5. Tabla `semana_entrenamiento`
+### 6. Tabla `semana_entrenamiento`
 
 ```sql
 CREATE TABLE semana_entrenamiento (
@@ -267,7 +318,7 @@ CREATE INDEX idx_semana_fechas ON semana_entrenamiento(fecha_inicio, fecha_fin);
 
 ---
 
-### 6. Tabla `sesion_entrenamiento`
+### 7. Tabla `sesion_entrenamiento`
 
 ```sql
 CREATE TABLE sesion_entrenamiento (
@@ -295,7 +346,7 @@ CREATE INDEX idx_sesion_fecha ON sesion_entrenamiento(fecha);
 
 ---
 
-### 7. Tabla `feedback_semanal`
+### 8. Tabla `feedback_semanal`
 
 ```sql
 CREATE TABLE feedback_semanal (
@@ -333,7 +384,9 @@ CREATE INDEX idx_feedback_semana_id ON feedback_semanal(semana_id);
 | Tabla | Restricción | Tipo | Propósito |
 |-------|-------------|------|----------|
 | `usuario` | username UNIQUE | UNIQUE | Sin logins duplicados |
+| `entrenadores` | correo UNIQUE | UNIQUE | Sin correos duplicados de entrenador |
 | `atleta` | usuario_id UNIQUE | UNIQUE | 1:1 con usuario |
+| `atleta` | entrenador_id → entrenadores.id | FK | Asignación de planificación por entrenador |
 | `atleta` | peso > 0 | CHECK | Dato válido |
 | `objetivo` | (atleta_id, activo=true) UNIQUE | UNIQUE (partial) | Un objetivo activo |
 | `semana_entrenamiento` | fecha_fin >= fecha_inicio | CHECK | Fechas coherentes |
@@ -348,9 +401,11 @@ CREATE INDEX idx_feedback_semana_id ON feedback_semanal(semana_id);
 ```sql
 -- Búsquedas y logins
 CREATE INDEX idx_usuario_username ON usuario(username);
+CREATE INDEX idx_entrenador_correo ON entrenadores(correo);
 
 -- Joins y filtros
 CREATE INDEX idx_atleta_usuario_id ON atleta(usuario_id);
+CREATE INDEX idx_atleta_entrenador_id ON atleta(entrenador_id);
 CREATE INDEX idx_objetivo_atleta_id ON objetivo(atleta_id);
 CREATE INDEX idx_semana_objetivo_id ON semana_entrenamiento(objetivo_id);
 CREATE INDEX idx_sesion_semana_id ON sesion_entrenamiento(semana_id);
@@ -377,6 +432,7 @@ CREATE UNIQUE INDEX idx_objetivo_activo_por_atleta
 ### 2. **ON DELETE CASCADE vs SET NULL**
    - Atleta → Objetivo: CASCADE (un objetivo sin atleta no tiene sentido)
    - Usuario → Atleta: SET NULL (un admin puede existir sin atleta)
+   - Entrenador → Atleta: SET NULL (se conserva el histórico del atleta si el entrenador se desactiva)
    - Objetivo → Semana: CASCADE (semanas huérfanas no se usan)
 
 ### 3. **Partial Unique Index para objetivo activo**

@@ -1,15 +1,7 @@
-# Node.js
-node_modules/
-package-lock.json
+# Global OS/editor files
+.DS_Store
+Thumbs.db
 
-# Environment
-.env
-.env.local
-
-# Frontend build
-dist/
-dist-ssr/
-
-# Logs
-*.log
-npm-debug.log*
+# Local editor settings (optional to share)
+.vscode/*
+!.vscode/extensions.json

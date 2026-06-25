@@ -39,6 +39,43 @@
 .sidebar__mark {
   background: linear-gradient(135deg, #d92d2a 0 48%, #f2c230 48% 100%);
   box-shadow: 0 0 0 3px rgba(217, 45, 42, 0.08);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  line-height: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+.sidebar__logo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.sidebar__mark-main {
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.sidebar__mark-main--hidden {
+  display: none;
+}
+
+.sidebar__mark-sub {
+  margin-top: 2px;
+  font-size: 0.5rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  opacity: 0.9;
+}
+
+.sidebar__mark-sub--hidden {
+  display: none;
 }
 
 .trainer__avatar {
@@ -51,6 +88,12 @@
   color: #8b4b00;
   text-transform: uppercase;
   letter-spacing: 0.08em;
+}
+
+.eyebrow--brand {
+  font-family: "Palatino Linotype", "Book Antiqua", Palatino, serif;
+  font-size: 0.82rem;
+  letter-spacing: 0.06em;
 }
 
 .sidebar__title {

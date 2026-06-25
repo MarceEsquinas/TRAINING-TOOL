@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
 import '../App.css'
 import { fetchDashboard } from '../services/dashboardApi'
+import logoCas from '../assets/logo-cas.jpeg'
 
 function Dashboard() {
    // Estado de pantalla: datos, carga en curso y posible error de red.
   const [dashboardData, setDashboardData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [logoLoadError, setLogoLoadError] = useState(false)
 
   // Carga inicial del dashboard al montar el componente.
   useEffect(() => {
@@ -119,10 +121,23 @@ function Dashboard() {
       <aside className="sidebar" aria-label="Navegación principal">
         <div className="sidebar__brand">
           <div className="sidebar__mark" aria-hidden="true">
-            CAS
+            {!logoLoadError && (
+              <img
+                className="sidebar__logo"
+                src={logoCas}
+                alt=""
+                onError={() => setLogoLoadError(true)}
+              />
+            )}
+            <span className={`sidebar__mark-main${logoLoadError ? '' : ' sidebar__mark-main--hidden'}`}>
+              TT
+            </span>
+            <span className={`sidebar__mark-sub${logoLoadError ? '' : ' sidebar__mark-sub--hidden'}`}>
+              app
+            </span>
           </div>
           <div>
-            <p className="eyebrow">Club Atletismo Seseña</p>
+            <p className="eyebrow eyebrow--brand">Training Tool</p>
             <h1 className="sidebar__title">Panel de trabajo</h1>
           </div>
         </div>

@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import '../App.css'
 import { fetchDashboard } from '../services/dashboardApi'
-import logoCas from '../assets/logo-cas.jpeg'
+import logoCas from '../assets/CAS_3.jpeg'
 
-function Dashboard() {
+function Dashboard({ onOpenPlanificacion }) {
    // Estado de pantalla: datos, carga en curso y posible error de red.
   const [dashboardData, setDashboardData] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -56,8 +56,8 @@ function Dashboard() {
       // Reglas de presentacion para transformar estado de negocio en etiqueta/color/prioridad.
       const estadoPrioritario = atleta.estado_prioritario || 'ok'
       const colorByEstado = {
-        planificacion_pendiente: 'amarillo',
-        objetivo_proximo: 'azul',
+        planificacion_pendiente: 'rojo',
+        objetivo_proximo: 'amarillo',
         ok: 'verde',
       }
 
@@ -74,6 +74,7 @@ function Dashboard() {
       }
 
       return {
+        id: atleta.atleta_id,
         nombre: atleta.nombre || atleta.atleta_nombre,
         objetivo: atleta.objetivo_nombre,
         fechaObjetivo: atleta.semana_fecha_fin || '-',
@@ -206,7 +207,7 @@ function Dashboard() {
 
           <div className="athletes-list">
             {atletasOrdenados.map((atleta) => (
-              <article className="athlete-card" key={atleta.nombre}>
+              <article className="athlete-card" key={atleta.id || atleta.nombre}>
                 <div className="athlete-card__head">
                   <div>
                     <h3>{atleta.nombre}</h3>
@@ -236,7 +237,12 @@ function Dashboard() {
 
                 <div className="athlete-card__footer">
                   <span className="field-label">{atleta.razonEstado || 'Prioridad de trabajo'}</span>
-                  <button className="plan-button" type="button">
+                  <button
+                    className="plan-button"
+                    type="button"
+                    onClick={() => onOpenPlanificacion?.(atleta.id)}
+                    disabled={!atleta.id}
+                  >
                     Ver planificación
                   </button>
                 </div>

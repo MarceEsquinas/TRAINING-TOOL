@@ -3,11 +3,14 @@ import '../App.css'
 import { fetchDashboard } from '../services/dashboardApi'
 
 function Dashboard() {
+   // Estado de pantalla: datos, carga en curso y posible error de red.
   const [dashboardData, setDashboardData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
+  // Carga inicial del dashboard al montar el componente.
   useEffect(() => {
+    // Evita setState cuando la pantalla ya no esta montada.
     let isMounted = true
 
     async function loadDashboard() {
@@ -36,10 +39,19 @@ function Dashboard() {
     }
   }, [])
 
+  // Extrae solo los datos que usa esta vista desde la respuesta del backend.
   const atletas = useMemo(() => dashboardData?.atletas || [], [dashboardData])
 
+  // Conteo para la campana de notificaciones del topbar.
+  const feedbackNuevos = useMemo(() => {
+    return Number(dashboardData?.summary?.num_feedback_nuevos || 0)
+  }, [dashboardData])
+  const feedbackBadge = feedbackNuevos > 9 ? '9+' : String(feedbackNuevos)
+
+  // Mapea el modelo de backend al modelo visual que necesita la tarjeta de UI.
   const atletasUI = useMemo(() => {
     return atletas.map((atleta) => {
+      // Reglas de presentacion para transformar estado de negocio en etiqueta/color/prioridad.
       const estadoPrioritario = atleta.estado_prioritario || 'ok'
       const colorByEstado = {
         planificacion_pendiente: 'amarillo',
@@ -74,6 +86,7 @@ function Dashboard() {
     })
   }, [atletas])
 
+  // Orden final mostrado en pantalla: prioridad ascendente (1 es mas urgente).
   const atletasOrdenados = [...atletasUI].sort((a, b) => a.prioridad - b.prioridad)
 
   // Texto corto para mantener un lenguaje visual simple y directo.
@@ -147,9 +160,19 @@ function Dashboard() {
             </div>
           </div>
 
-          <div className="notifications" aria-label="Notificaciones futuras">
-            Espacio para notificaciones
-          </div>
+          <button
+            className="notifications"
+            type="button"
+            aria-label={`Notificaciones (${feedbackNuevos} pendientes)`}
+          >
+            <span className="notifications__bell" aria-hidden="true" />
+            <span className="notifications__text">Notificaciones</span>
+            {feedbackNuevos > 0 && (
+              <span className="notifications__badge" aria-hidden="true">
+                {feedbackBadge}
+              </span>
+            )}
+          </button>
         </header>
 
         {/* Contenido principal: la atención se centra en qué atleta necesita acción. */}
@@ -162,6 +185,7 @@ function Dashboard() {
             <p className="panel-header__note">Atletas con objetivo activo.</p>
           </div>
 
+          {/* Estados de experiencia: primero carga, luego error si existe. */}
           {loading && <p>Cargando dashboard...</p>}
           {error && !loading && <p>{error}</p>}
 
@@ -203,6 +227,7 @@ function Dashboard() {
                 </div>
               </article>
             ))}
+            {/* Estado vacio: respuesta valida sin atletas activos. */}
             {!loading && !error && atletasOrdenados.length === 0 && (
               <p>No hay atletas activos para mostrar.</p>
             )}

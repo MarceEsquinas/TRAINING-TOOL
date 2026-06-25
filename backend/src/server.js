@@ -1,4 +1,5 @@
 import express from 'express';
+import cors from 'cors';
 import atletasRoute from './routes/crud/atletasRoute.js';
 import objetivoRoute from './routes/crud/objetivoRoute.js';
 import semanaEntrenamientoRoute from './routes/crud/semanaEntrenamientoRoute.js';
@@ -14,6 +15,7 @@ const app = express();
 const PORT = 3000;
 
 // Middleware para parsear JSON en el cuerpo de las peticiones.
+app.use(cors());
 app.use(express.json());
 
 // Rutas CRUD: operaciones básicas sobre las entidades del sistema.

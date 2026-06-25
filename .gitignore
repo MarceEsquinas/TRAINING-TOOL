@@ -5,3 +5,6 @@ Thumbs.db
 # Local editor settings (optional to share)
 .vscode/*
 !.vscode/extensions.json
+
+# Frontend env
+frontend/.env

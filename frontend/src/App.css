@@ -522,6 +522,228 @@
   gap: 10px;
 }
 
+.historial {
+  min-height: 100vh;
+  padding: 28px;
+  background: linear-gradient(180deg, #fbfbf7 0%, #f5f5f1 100%);
+  color: #1f1f1f;
+}
+
+.historial__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  align-items: flex-start;
+  margin-bottom: 24px;
+}
+
+.historial__back,
+.historial__feedback-button,
+.historial__detail-close {
+  border: 1px solid #d9d1b1;
+  background: #fffef8;
+  color: #232323;
+  font: inherit;
+  border-radius: 12px;
+  padding: 10px 14px;
+}
+
+.historial__header-copy {
+  flex: 1;
+}
+
+.historial__eyebrow {
+  margin: 0;
+  font-size: 0.78rem;
+  color: #8b4b00;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.historial__title {
+  margin: 6px 0 0;
+  font-size: clamp(2rem, 4vw, 3.2rem);
+  font-weight: 800;
+  letter-spacing: -0.04em;
+}
+
+.historial__subtitle {
+  margin: 8px 0 0;
+  color: #5f5a4d;
+  font-size: 1rem;
+}
+
+.historial__content {
+  display: grid;
+  gap: 18px;
+}
+
+.historial__objective-card,
+.historial__detail-card {
+  background: #ffffff;
+  border: 1px solid #e3dcc6;
+  border-radius: 16px;
+  padding: 20px;
+}
+
+.historial__objective-header,
+.historial__detail-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.historial__objective-name {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.historial__objective-dates,
+.historial__km-total,
+.historial__week-line,
+.historial__detail-meta,
+.historial__detail-week,
+.historial__detail-reason {
+  margin: 6px 0 0;
+  color: #5f5a4d;
+}
+
+.historial__objective-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.historial__weeks {
+  margin-top: 16px;
+  display: grid;
+  gap: 12px;
+}
+
+.historial__week {
+  padding: 14px;
+  border-radius: 14px;
+  border: 1px solid #e8e0c8;
+  background: linear-gradient(180deg, #fffaf0 0%, #fffdf8 100%);
+}
+
+.historial__week-line {
+  margin: 0;
+  font-weight: 600;
+  color: #222;
+}
+
+.historial__feedback-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  margin-top: 10px;
+}
+
+.historial__feedback-label {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #8e7d48;
+}
+
+.historial__status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 7px 10px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background: #f6f3ea;
+  color: #5f5a4d;
+  font-size: 0.76rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.historial__status--activo {
+  background: #e4f5ea;
+  border-color: #2f9d57;
+  color: #267a44;
+}
+
+.historial__status--finalizado {
+  background: #fde8e8;
+  border-color: #d92d2a;
+  color: #a8201e;
+}
+
+.historial__status--completada {
+  background: #e4f5ea;
+  border-color: #2f9d57;
+  color: #267a44;
+}
+
+.historial__km-total {
+  font-weight: 700;
+}
+
+.historial__detail-card {
+  margin-top: 4px;
+}
+
+.historial__detail-title {
+  margin: 6px 0 0;
+  font-size: 1.35rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.historial__detail-body {
+  margin-top: 14px;
+  display: grid;
+  gap: 14px;
+}
+
+.historial__detail-summary {
+  padding: 14px;
+  border-radius: 14px;
+  border: 1px solid #e8e0c8;
+  background: linear-gradient(180deg, #fffaf0 0%, #fffdf8 100%);
+}
+
+.historial__detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin: 0;
+}
+
+.historial__detail-grid div,
+.historial__detail-fullwidth {
+  padding: 12px;
+  border: 1px solid #e6dfc7;
+  border-radius: 12px;
+}
+
+.historial__detail-grid dt {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #8e7d48;
+}
+
+.historial__detail-grid dd {
+  margin: 6px 0 0;
+  font-weight: 600;
+  color: #1f1f1f;
+}
+
+.historial__detail-fullwidth {
+  grid-column: 1 / -1;
+}
+
 @media (max-width: 960px) {
   .app-shell {
     grid-template-columns: 1fr;
@@ -553,6 +775,16 @@
     align-items: flex-start;
     flex-direction: column;
   }
+
+  .historial__header,
+  .historial__objective-header,
+  .historial__detail-head {
+    flex-direction: column;
+  }
+
+  .historial__objective-meta {
+    align-items: flex-start;
+  }
 }
 
 @media (max-width: 640px) {
@@ -564,6 +796,11 @@
   .main-panel,
   .topbar,
   .sidebar {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .historial {
     padding-left: 16px;
     padding-right: 16px;
   }

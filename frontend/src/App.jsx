@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import Dashboard from './page/dashboard.jsx'
 import Planificacion from './page/planificacion.jsx'
+import Historial from './page/historial.jsx'
 
 function App() {
   // Estado de navegación local: pantalla activa y atleta seleccionado.
@@ -11,6 +12,12 @@ function App() {
   function handleOpenPlanificacion(atletaId) {
     setSelectedAtletaId(atletaId)
     setActiveView('planificacion')
+  }
+
+  // Navega a historial usando el id del atleta pulsado en dashboard.
+  function handleOpenHistorial(atletaId) {
+    setSelectedAtletaId(atletaId)
+    setActiveView('historial')
   }
 
   // Vuelve al panel principal y limpia selección temporal.
@@ -28,7 +35,21 @@ function App() {
     )
   }
 
-  return <Dashboard onOpenPlanificacion={handleOpenPlanificacion} />
+  if (activeView === 'historial' && selectedAtletaId) {
+    return (
+      <Historial
+        atletaId={selectedAtletaId}
+        onBack={handleBackToDashboard}
+      />
+    )
+  }
+
+  return (
+    <Dashboard
+      onOpenPlanificacion={handleOpenPlanificacion}
+      onOpenHistorial={handleOpenHistorial}
+    />
+  )
 }
 
 export default App

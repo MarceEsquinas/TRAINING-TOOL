@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { fetchPlanificacion } from '../services/planificacionApi'
+import { formatDate } from '../utils/dateFormat'
 
 function Planificacion({ atletaId, onBack }) {
   // Estado de pantalla: datos, carga en curso y error de red/backend.
@@ -11,7 +12,7 @@ function Planificacion({ atletaId, onBack }) {
   useEffect(() => {
     let isMounted = true
 
-    async function loadPlanificacion() {
+    async function loadData() {
       try {
         setLoading(true)
         setError('')
@@ -30,7 +31,7 @@ function Planificacion({ atletaId, onBack }) {
       }
     }
 
-    loadPlanificacion()
+    loadData()
 
     return () => {
       isMounted = false
@@ -72,7 +73,7 @@ function Planificacion({ atletaId, onBack }) {
               </div>
               <div>
                 <span className="field-label">Fecha objetivo</span>
-                <strong>{objetivo?.fecha_objetivo || '-'}</strong>
+                <strong>{formatDate(objetivo?.fecha_objetivo)}</strong>
               </div>
               <div>
                 <span className="field-label">Días restantes</span>
@@ -88,11 +89,11 @@ function Planificacion({ atletaId, onBack }) {
               <div className="planificacion__grid">
                 <div>
                   <span className="field-label">Inicio</span>
-                  <strong>{semana.fecha_inicio}</strong>
+                  <strong>{formatDate(semana.fecha_inicio)}</strong>
                 </div>
                 <div>
                   <span className="field-label">Fin</span>
-                  <strong>{semana.fecha_fin}</strong>
+                  <strong>{formatDate(semana.fecha_fin)}</strong>
                 </div>
                 <div>
                   <span className="field-label">Kilómetros semanales</span>
@@ -111,10 +112,6 @@ function Planificacion({ atletaId, onBack }) {
           <article className="planificacion__card">
             <div className="planificacion__sessions-head">
               <h3>Sesiones de la semana</h3>
-              <div className="planificacion__actions">
-                <button type="button" className="plan-button">Crear siguiente semana</button>
-                <button type="button" className="plan-button">Modificar planificación</button>
-              </div>
             </div>
 
             {sesiones.length === 0 && <p>Esta semana todavía no tiene sesiones planificadas.</p>}

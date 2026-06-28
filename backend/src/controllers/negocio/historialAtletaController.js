@@ -49,6 +49,7 @@ export async function getHistorialCompletoAtleta(req, res) {
             fecha_inicio: semana.fecha_inicio,
             fecha_fin: semana.fecha_fin,
             kilometros_realizados: Number(semana.kilometros_realizados),
+            kilometros_planificados: Number(semana.kilometros_planificados),
           })),
         };
       })
@@ -156,6 +157,7 @@ export async function getHistorialPlanificacionObjetivo(req, res) {
         fecha_inicio: semana.fecha_inicio,
         fecha_fin: semana.fecha_fin,
         kilometros_realizados: Number(semana.kilometros_realizados),
+          kilometros_planificados: Number(semana.kilometros_planificados),
       })),
       count: result.rows.length,
     });

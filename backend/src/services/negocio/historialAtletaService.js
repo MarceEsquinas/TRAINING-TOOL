@@ -47,7 +47,8 @@ export async function getHistorialPlanificacionByObjetivoId(objetivoId) {
        s.id AS semana_id,
        s.fecha_inicio,
        s.fecha_fin,
-       COALESCE(SUM(COALESCE(ses.kilometros_realizados, 0)), 0) AS kilometros_realizados
+       COALESCE(SUM(COALESCE(ses.kilometros_realizados, 0)), 0) AS kilometros_realizados,
+       COALESCE(SUM(COALESCE(ses.kilometros_planificados, 0)), 0) AS kilometros_planificados
      FROM semana_entrenamiento s
      LEFT JOIN sesion_entrenamiento ses ON ses.semana_id = s.id
      WHERE s.objetivo_id = $1
@@ -100,6 +101,7 @@ export async function getDetalleFeedbackById(feedbackId) {
        f.motivo_no_completada,
        f.sensaciones,
        f.molestias,
+       f.ritmo_rodaje,
        f.comentario,
        f.created_at,
        f.updated_at,

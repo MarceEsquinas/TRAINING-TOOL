@@ -2,8 +2,9 @@ import { useEffect, useMemo, useState } from 'react'
 import '../App.css'
 import { fetchDashboard } from '../services/dashboardApi'
 import logoCas from '../assets/CAS_3.jpeg'
+import { formatDate } from '../utils/dateFormat'
 
-function Dashboard({ onOpenPlanificacion }) {
+function Dashboard({ onOpenPlanificacion, onOpenHistorial }) {
    // Estado de pantalla: datos, carga en curso y posible error de red.
   const [dashboardData, setDashboardData] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -221,7 +222,7 @@ function Dashboard({ onOpenPlanificacion }) {
                 <div className="athlete-card__grid">
                   <div>
                     <span className="field-label">Semana (fin)</span>
-                    <strong>{atleta.fechaObjetivo}</strong>
+                    <strong>{formatDate(atleta.fechaObjetivo)}</strong>
                   </div>
                   <div>
                     <span className="field-label">Días restantes</span>
@@ -237,14 +238,24 @@ function Dashboard({ onOpenPlanificacion }) {
 
                 <div className="athlete-card__footer">
                   <span className="field-label">{atleta.razonEstado || 'Prioridad de trabajo'}</span>
-                  <button
-                    className="plan-button"
-                    type="button"
-                    onClick={() => onOpenPlanificacion?.(atleta.id)}
-                    disabled={!atleta.id}
-                  >
-                    Ver planificación
-                  </button>
+                  <div className="planificacion__actions">
+                    <button
+                      className="plan-button"
+                      type="button"
+                      onClick={() => onOpenPlanificacion?.(atleta.id)}
+                      disabled={!atleta.id}
+                    >
+                      Ver planificación
+                    </button>
+                    <button
+                      className="plan-button"
+                      type="button"
+                      onClick={() => onOpenHistorial?.(atleta.id)}
+                      disabled={!atleta.id}
+                    >
+                      Ver historial
+                    </button>
+                  </div>
                 </div>
               </article>
             ))}

@@ -1,0 +1,84 @@
+import { query } from '../../config/db.js';
+import { ServiceError } from '../serviceError.js';
+
+export async function listSesionesEntrenamiento() {
+  const result = await query('SELECT * FROM sesion_entrenamiento ORDER BY id');
+  return result.rows;
+}
+
+export async function findSesionEntrenamientoById(id) {
+  const result = await query('SELECT * FROM sesion_entrenamiento WHERE id = $1', [id]);
+  return result.rows[0] ?? null;
+}
+
+export async function createSesionEntrenamiento(payload) {
+  const { semana_id, orden, descripcion, kilometros_planificados } = payload ?? {};
+
+  if (!semana_id) {
+    throw new ServiceError(400, 'El semana_id es requerido');
+  }
+  if (!orden || String(orden).trim() === '') {
+    throw new ServiceError(400, 'El orden es requerido');
+  }
+  if (!descripcion || String(descripcion).trim() === '') {
+    throw new ServiceError(400, 'La descripción es requerida');
+  }
+
+  const sql = `
+    INSERT INTO sesion_entrenamiento
+    (semana_id, orden, descripcion, kilometros_planificados)
+    VALUES ($1, $2, $3, $4)
+    RETURNING *;
+  `;
+
+  const params = [semana_id, String(orden).trim(), String(descripcion).trim(), kilometros_planificados || null];
+  const result = await query(sql, params);
+  return result.rows[0];
+}
+
+export async function updateSesionEntrenamiento(id, payload) {
+  const { semana_id, orden, descripcion, kilometros_planificados } = payload ?? {};
+
+  const fields = [];
+  const params = [];
+  let idx = 1;
+
+  if (semana_id !== undefined) {
+    fields.push(`semana_id = $${idx++}`);
+    params.push(semana_id);
+  }
+  if (orden !== undefined) {
+    fields.push(`orden = $${idx++}`);
+    params.push(String(orden).trim());
+  }
+  if (descripcion !== undefined) {
+    fields.push(`descripcion = $${idx++}`);
+    params.push(String(descripcion).trim());
+  }
+  if (kilometros_planificados !== undefined) {
+    fields.push(`kilometros_planificados = $${idx++}`);
+    params.push(kilometros_planificados);
+  }
+
+  if (fields.length === 0) {
+    throw new ServiceError(400, 'No hay campos para actualizar');
+  }
+
+  params.push(id);
+  const sql = `UPDATE sesion_entrenamiento SET ${fields.join(', ')} WHERE id = $${idx} RETURNING *;`;
+  const result = await query(sql, params);
+
+  if (result.rows.length === 0) {
+    throw new ServiceError(404, `No se encontró sesión de entrenamiento con id ${id}`);
+  }
+
+  return result.rows[0];
+}
+
+export async function deleteSesionEntrenamiento(id) {
+  const result = await query('DELETE FROM sesion_entrenamiento WHERE id = $1 RETURNING *;', [id]);
+  if (result.rows.length === 0) {
+    throw new ServiceError(404, `No se encontró sesión de entrenamiento con id ${id}`);
+  }
+  return result.rows[0];
+}

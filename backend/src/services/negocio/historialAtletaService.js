@@ -1,4 +1,9 @@
 import { query } from '../../config/db.js';
+import { ServiceError } from '../serviceError.js';
+
+function esNumeroValido(valor) {
+  return valor && !Number.isNaN(Number(valor));
+}
 
 // Servicio para obtener un atleta por su id.
 export async function getAtletaById(atletaId) {
@@ -119,4 +124,147 @@ export async function getDetalleFeedbackById(feedbackId) {
      WHERE f.id = $1;`,
     [feedbackId]
   );
+}
+
+export async function getHistorialCompletoAtletaData(atletaId) {
+  if (!esNumeroValido(atletaId)) {
+    throw new ServiceError(400, 'El atletaId debe ser un número válido');
+  }
+
+  const atletaResult = await getAtletaById(atletaId);
+  if (atletaResult.rows.length === 0) {
+    throw new ServiceError(404, `No se encontró atleta con id ${atletaId}`);
+  }
+
+  const objetivosResult = await getHistorialObjetivosByAtletaId(atletaId);
+  const feedbackResult = await getHistorialFeedbackResumenByAtletaId(atletaId);
+
+  const objetivosConPlanificacion = await Promise.all(
+    objetivosResult.rows.map(async (objetivo) => {
+      const planificacionResult = await getHistorialPlanificacionByObjetivoId(objetivo.objetivo_id);
+
+      return {
+        id: objetivo.objetivo_id,
+        nombre: objetivo.nombre_objetivo,
+        distancia: objetivo.distancia !== null ? Number(objetivo.distancia) : null,
+        fecha_objetivo: objetivo.fecha_objetivo,
+        estado: objetivo.estado,
+        planificacion: planificacionResult.rows.map((semana) => ({
+          semana_id: semana.semana_id,
+          fecha_inicio: semana.fecha_inicio,
+          fecha_fin: semana.fecha_fin,
+          kilometros_realizados: Number(semana.kilometros_realizados),
+          kilometros_planificados: Number(semana.kilometros_planificados),
+        })),
+      };
+    })
+  );
+
+  return {
+    atleta: atletaResult.rows[0],
+    objetivos: objetivosConPlanificacion,
+    feedback_resumen: feedbackResult.rows.map((feedback) => ({
+      feedback_id: feedback.feedback_id,
+      fecha_feedback: feedback.fecha_feedback,
+      completada: feedback.completada,
+      resumen_corto: feedback.resumen_corto,
+      semana_id: feedback.semana_id,
+      semana_fecha_inicio: feedback.semana_fecha_inicio,
+      semana_fecha_fin: feedback.semana_fecha_fin,
+      objetivo_id: feedback.objetivo_id,
+      objetivo_nombre: feedback.objetivo_nombre,
+    })),
+  };
+}
+
+export async function getHistorialObjetivosAtletaData(atletaId) {
+  if (!esNumeroValido(atletaId)) {
+    throw new ServiceError(400, 'El atletaId debe ser un número válido');
+  }
+
+  const atletaResult = await getAtletaById(atletaId);
+  if (atletaResult.rows.length === 0) {
+    throw new ServiceError(404, `No se encontró atleta con id ${atletaId}`);
+  }
+
+  const result = await getHistorialObjetivosByAtletaId(atletaId);
+
+  return {
+    atleta: atletaResult.rows[0],
+    data: result.rows.map((objetivo) => ({
+      id: objetivo.objetivo_id,
+      nombre: objetivo.nombre_objetivo,
+      distancia: objetivo.distancia !== null ? Number(objetivo.distancia) : null,
+      fecha_objetivo: objetivo.fecha_objetivo,
+      estado: objetivo.estado,
+    })),
+    count: result.rows.length,
+  };
+}
+
+export async function getHistorialPlanificacionObjetivoData(objetivoId) {
+  if (!esNumeroValido(objetivoId)) {
+    throw new ServiceError(400, 'El objetivoId debe ser un número válido');
+  }
+
+  const objetivoResult = await getObjetivoById(objetivoId);
+  if (objetivoResult.rows.length === 0) {
+    throw new ServiceError(404, `No se encontró objetivo con id ${objetivoId}`);
+  }
+
+  const result = await getHistorialPlanificacionByObjetivoId(objetivoId);
+
+  return {
+    objetivo: objetivoResult.rows[0],
+    data: result.rows.map((semana) => ({
+      semana_id: semana.semana_id,
+      fecha_inicio: semana.fecha_inicio,
+      fecha_fin: semana.fecha_fin,
+      kilometros_realizados: Number(semana.kilometros_realizados),
+      kilometros_planificados: Number(semana.kilometros_planificados),
+    })),
+    count: result.rows.length,
+  };
+}
+
+export async function getHistorialFeedbackAtletaData(atletaId) {
+  if (!esNumeroValido(atletaId)) {
+    throw new ServiceError(400, 'El atletaId debe ser un número válido');
+  }
+
+  const atletaResult = await getAtletaById(atletaId);
+  if (atletaResult.rows.length === 0) {
+    throw new ServiceError(404, `No se encontró atleta con id ${atletaId}`);
+  }
+
+  const result = await getHistorialFeedbackResumenByAtletaId(atletaId);
+
+  return {
+    atleta: atletaResult.rows[0],
+    data: result.rows.map((feedback) => ({
+      feedback_id: feedback.feedback_id,
+      fecha_feedback: feedback.fecha_feedback,
+      completada: feedback.completada,
+      resumen_corto: feedback.resumen_corto,
+      semana_id: feedback.semana_id,
+      semana_fecha_inicio: feedback.semana_fecha_inicio,
+      semana_fecha_fin: feedback.semana_fecha_fin,
+      objetivo_id: feedback.objetivo_id,
+      objetivo_nombre: feedback.objetivo_nombre,
+    })),
+    count: result.rows.length,
+  };
+}
+
+export async function getDetalleFeedbackData(feedbackId) {
+  if (!esNumeroValido(feedbackId)) {
+    throw new ServiceError(400, 'El feedbackId debe ser un número válido');
+  }
+
+  const result = await getDetalleFeedbackById(feedbackId);
+  if (result.rows.length === 0) {
+    throw new ServiceError(404, `No se encontró feedback con id ${feedbackId}`);
+  }
+
+  return result.rows[0];
 }

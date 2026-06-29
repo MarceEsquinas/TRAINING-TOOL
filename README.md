@@ -390,8 +390,21 @@ Estructura actual del backend:
 
 - `src/routes/crud`: rutas CRUD de entidades
 - `src/routes/negocio`: rutas de casos de uso (dashboard, planificación, notificaciones)
-- `src/controllers/crud`: controladores CRUD
-- `src/controllers/negocio`: controladores de negocio
+- `src/controllers/crud`: capa HTTP de endpoints CRUD (sin SQL)
+- `src/controllers/negocio`: capa HTTP de endpoints de negocio (sin SQL)
+- `src/services/crud`: validaciones + lógica CRUD + consultas SQL
+- `src/services/negocio`: lógica de casos de uso + consultas SQL + shape de respuesta
+- `src/services/serviceError.js`: errores de servicio con código HTTP para respuestas consistentes
+
+### Responsabilidades por Capa
+
+- **Routes**: definen URL/método y delegan en controllers.
+- **Controllers**: gestionan `req/res` (status code, body, manejo de errores).
+- **Services**: concentran validaciones, reglas de negocio, orquestación y SQL.
+
+Flujo estándar del backend:
+
+`Route -> Controller (HTTP) -> Service (lógica + SQL) -> PostgreSQL`
 
 ### Flujo de Diseño: Casos de Uso Primero
 
@@ -401,10 +414,10 @@ Cada funcionalidad se desarrolla siguiendo este flujo:
 2. **Definición de Datos**: Cambios en BD (nuevas columnas, tablas, triggers)
 3. **Shape de API**: Estructura JSON de respuesta
 4. **Consultas SQL**: Lógica optimizada en BD
-5. **Controller + Route**: Implementación en Express
+5. **Service + Controller + Route**: Implementación por capas en Express
 6. **Documentación**: Archivo en `docs/` detallando el caso de uso
 
-**Beneficio**: Separación clara entre lógica de negocio (BD) y API, facilitando cambios y testing.
+**Beneficio**: separación clara entre transporte HTTP y lógica de negocio/datos, facilitando mantenimiento, pruebas y evolución.
 
 ---
 

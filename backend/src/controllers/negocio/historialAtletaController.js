@@ -1,79 +1,26 @@
 import {
-  getAtletaById,
-  getObjetivoById,
-  getHistorialObjetivosByAtletaId,
-  getHistorialPlanificacionByObjetivoId,
-  getHistorialFeedbackResumenByAtletaId,
-  getDetalleFeedbackById,
+  getHistorialCompletoAtletaData,
+  getHistorialObjetivosAtletaData,
+  getHistorialPlanificacionObjetivoData,
+  getHistorialFeedbackAtletaData,
+  getDetalleFeedbackData,
 } from '../../services/negocio/historialAtletaService.js';
-
-function esNumeroValido(valor) {
-  return valor && !Number.isNaN(Number(valor));
-}
+import { ServiceError } from '../../services/serviceError.js';
 
 // Controlador para GET /historial/atletas/:atletaId
 export async function getHistorialCompletoAtleta(req, res) {
   try {
     const { atletaId } = req.params;
-
-    if (!esNumeroValido(atletaId)) {
-      return res.status(400).json({
-        success: false,
-        message: 'El atletaId debe ser un número válido',
-      });
-    }
-
-    const atletaResult = await getAtletaById(atletaId);
-    if (atletaResult.rows.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: `No se encontró atleta con id ${atletaId}`,
-      });
-    }
-
-    const objetivosResult = await getHistorialObjetivosByAtletaId(atletaId);
-    const feedbackResult = await getHistorialFeedbackResumenByAtletaId(atletaId);
-
-    const objetivosConPlanificacion = await Promise.all(
-      objetivosResult.rows.map(async (objetivo) => {
-        const planificacionResult = await getHistorialPlanificacionByObjetivoId(objetivo.objetivo_id);
-
-        return {
-          id: objetivo.objetivo_id,
-          nombre: objetivo.nombre_objetivo,
-          distancia: objetivo.distancia !== null ? Number(objetivo.distancia) : null,
-          fecha_objetivo: objetivo.fecha_objetivo,
-          estado: objetivo.estado,
-          planificacion: planificacionResult.rows.map((semana) => ({
-            semana_id: semana.semana_id,
-            fecha_inicio: semana.fecha_inicio,
-            fecha_fin: semana.fecha_fin,
-            kilometros_realizados: Number(semana.kilometros_realizados),
-            kilometros_planificados: Number(semana.kilometros_planificados),
-          })),
-        };
-      })
-    );
+    const data = await getHistorialCompletoAtletaData(atletaId);
 
     return res.status(200).json({
       success: true,
-      data: {
-        atleta: atletaResult.rows[0],
-        objetivos: objetivosConPlanificacion,
-        feedback_resumen: feedbackResult.rows.map((feedback) => ({
-          feedback_id: feedback.feedback_id,
-          fecha_feedback: feedback.fecha_feedback,
-          completada: feedback.completada,
-          resumen_corto: feedback.resumen_corto,
-          semana_id: feedback.semana_id,
-          semana_fecha_inicio: feedback.semana_fecha_inicio,
-          semana_fecha_fin: feedback.semana_fecha_fin,
-          objetivo_id: feedback.objetivo_id,
-          objetivo_nombre: feedback.objetivo_nombre,
-        })),
-      },
+      data,
     });
   } catch (error) {
+    if (error instanceof ServiceError) {
+      return res.status(error.status).json({ success: false, message: error.message });
+    }
     console.error('Error al obtener historial completo del atleta:', error);
     return res.status(500).json({
       success: false,
@@ -87,37 +34,18 @@ export async function getHistorialCompletoAtleta(req, res) {
 export async function getHistorialObjetivosAtleta(req, res) {
   try {
     const { atletaId } = req.params;
-
-    if (!esNumeroValido(atletaId)) {
-      return res.status(400).json({
-        success: false,
-        message: 'El atletaId debe ser un número válido',
-      });
-    }
-
-    const atletaResult = await getAtletaById(atletaId);
-    if (atletaResult.rows.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: `No se encontró atleta con id ${atletaId}`,
-      });
-    }
-
-    const result = await getHistorialObjetivosByAtletaId(atletaId);
+    const result = await getHistorialObjetivosAtletaData(atletaId);
 
     return res.status(200).json({
       success: true,
-      atleta: atletaResult.rows[0],
-      data: result.rows.map((objetivo) => ({
-        id: objetivo.objetivo_id,
-        nombre: objetivo.nombre_objetivo,
-        distancia: objetivo.distancia !== null ? Number(objetivo.distancia) : null,
-        fecha_objetivo: objetivo.fecha_objetivo,
-        estado: objetivo.estado,
-      })),
-      count: result.rows.length,
+      atleta: result.atleta,
+      data: result.data,
+      count: result.count,
     });
   } catch (error) {
+    if (error instanceof ServiceError) {
+      return res.status(error.status).json({ success: false, message: error.message });
+    }
     console.error('Error al obtener historial de objetivos del atleta:', error);
     return res.status(500).json({
       success: false,
@@ -131,37 +59,18 @@ export async function getHistorialObjetivosAtleta(req, res) {
 export async function getHistorialPlanificacionObjetivo(req, res) {
   try {
     const { objetivoId } = req.params;
-
-    if (!esNumeroValido(objetivoId)) {
-      return res.status(400).json({
-        success: false,
-        message: 'El objetivoId debe ser un número válido',
-      });
-    }
-
-    const objetivoResult = await getObjetivoById(objetivoId);
-    if (objetivoResult.rows.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: `No se encontró objetivo con id ${objetivoId}`,
-      });
-    }
-
-    const result = await getHistorialPlanificacionByObjetivoId(objetivoId);
+    const result = await getHistorialPlanificacionObjetivoData(objetivoId);
 
     return res.status(200).json({
       success: true,
-      objetivo: objetivoResult.rows[0],
-      data: result.rows.map((semana) => ({
-        semana_id: semana.semana_id,
-        fecha_inicio: semana.fecha_inicio,
-        fecha_fin: semana.fecha_fin,
-        kilometros_realizados: Number(semana.kilometros_realizados),
-          kilometros_planificados: Number(semana.kilometros_planificados),
-      })),
-      count: result.rows.length,
+      objetivo: result.objetivo,
+      data: result.data,
+      count: result.count,
     });
   } catch (error) {
+    if (error instanceof ServiceError) {
+      return res.status(error.status).json({ success: false, message: error.message });
+    }
     console.error('Error al obtener historial de planificación del objetivo:', error);
     return res.status(500).json({
       success: false,
@@ -175,41 +84,18 @@ export async function getHistorialPlanificacionObjetivo(req, res) {
 export async function getHistorialFeedbackAtleta(req, res) {
   try {
     const { atletaId } = req.params;
-
-    if (!esNumeroValido(atletaId)) {
-      return res.status(400).json({
-        success: false,
-        message: 'El atletaId debe ser un número válido',
-      });
-    }
-
-    const atletaResult = await getAtletaById(atletaId);
-    if (atletaResult.rows.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: `No se encontró atleta con id ${atletaId}`,
-      });
-    }
-
-    const result = await getHistorialFeedbackResumenByAtletaId(atletaId);
+    const result = await getHistorialFeedbackAtletaData(atletaId);
 
     return res.status(200).json({
       success: true,
-      atleta: atletaResult.rows[0],
-      data: result.rows.map((feedback) => ({
-        feedback_id: feedback.feedback_id,
-        fecha_feedback: feedback.fecha_feedback,
-        completada: feedback.completada,
-        resumen_corto: feedback.resumen_corto,
-        semana_id: feedback.semana_id,
-        semana_fecha_inicio: feedback.semana_fecha_inicio,
-        semana_fecha_fin: feedback.semana_fecha_fin,
-        objetivo_id: feedback.objetivo_id,
-        objetivo_nombre: feedback.objetivo_nombre,
-      })),
-      count: result.rows.length,
+      atleta: result.atleta,
+      data: result.data,
+      count: result.count,
     });
   } catch (error) {
+    if (error instanceof ServiceError) {
+      return res.status(error.status).json({ success: false, message: error.message });
+    }
     console.error('Error al obtener historial resumido de feedback del atleta:', error);
     return res.status(500).json({
       success: false,
@@ -223,28 +109,16 @@ export async function getHistorialFeedbackAtleta(req, res) {
 export async function getDetalleFeedback(req, res) {
   try {
     const { feedbackId } = req.params;
-
-    if (!esNumeroValido(feedbackId)) {
-      return res.status(400).json({
-        success: false,
-        message: 'El feedbackId debe ser un número válido',
-      });
-    }
-
-    const result = await getDetalleFeedbackById(feedbackId);
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: `No se encontró feedback con id ${feedbackId}`,
-      });
-    }
+    const data = await getDetalleFeedbackData(feedbackId);
 
     return res.status(200).json({
       success: true,
-      data: result.rows[0],
+      data,
     });
   } catch (error) {
+    if (error instanceof ServiceError) {
+      return res.status(error.status).json({ success: false, message: error.message });
+    }
     console.error('Error al obtener detalle de feedback:', error);
     return res.status(500).json({
       success: false,

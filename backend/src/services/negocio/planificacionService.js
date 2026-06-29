@@ -1,6 +1,82 @@
 import { query } from '../../config/db.js';
 import { ServiceError } from '../serviceError.js';
 
+function toIsoDateUTC(date) {
+  return date.toISOString().slice(0, 10);
+}
+
+function normalizeDateInputToIsoDate(dateInput) {
+  if (dateInput instanceof Date) {
+    if (Number.isNaN(dateInput.getTime())) {
+      throw new ServiceError(400, 'La fecha_inicio no es válida');
+    }
+    return toIsoDateUTC(dateInput);
+  }
+
+  const raw = String(dateInput ?? '');
+
+  // Formato esperado de entrada del cliente.
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+    return raw;
+  }
+
+  // Permite normalizar timestamps ISO a fecha cuando provienen de integraciones externas.
+  if (/^\d{4}-\d{2}-\d{2}T/.test(raw)) {
+    const parsed = new Date(raw);
+    if (Number.isNaN(parsed.getTime())) {
+      throw new ServiceError(400, 'La fecha_inicio no es válida');
+    }
+    return toIsoDateUTC(parsed);
+  }
+
+  throw new ServiceError(400, 'La fecha_inicio debe tener formato YYYY-MM-DD');
+}
+
+function parseIsoDateOrThrow(dateStr) {
+  const isoDate = normalizeDateInputToIsoDate(dateStr);
+  const date = new Date(`${isoDate}T00:00:00.000Z`);
+  if (Number.isNaN(date.getTime())) {
+    throw new ServiceError(400, 'La fecha_inicio no es válida');
+  }
+
+  return date;
+}
+
+function plusDaysISO(dateStr, days) {
+  const base = parseIsoDateOrThrow(dateStr);
+  base.setUTCDate(base.getUTCDate() + days);
+  return toIsoDateUTC(base);
+}
+
+async function getContextoPlanificacionOrThrow(atletaId) {
+  if (!atletaId || Number.isNaN(Number(atletaId))) {
+    throw new ServiceError(400, 'El atletaId debe ser un número válido');
+  }
+
+  const atletaResult = await query('SELECT id, nombre FROM atleta WHERE id = $1', [atletaId]);
+  if (atletaResult.rows.length === 0) {
+    throw new ServiceError(404, `No se encontró atleta con id ${atletaId}`);
+  }
+
+  const objetivoResult = await query(
+    `SELECT id, nombre, fecha_objetivo
+     FROM objetivo
+     WHERE atleta_id = $1 AND activo = true
+     ORDER BY id DESC
+     LIMIT 1;`,
+    [atletaId]
+  );
+
+  if (objetivoResult.rows.length === 0) {
+    throw new ServiceError(409, 'El atleta no tiene un objetivo activo para planificar');
+  }
+
+  return {
+    atleta: atletaResult.rows[0],
+    objetivo: objetivoResult.rows[0],
+  };
+}
+
 export async function getPlanificacionAtletaData(atletaId) {
   if (!atletaId || Number.isNaN(Number(atletaId))) {
     throw new ServiceError(400, 'El atletaId debe ser un número válido');
@@ -129,5 +205,88 @@ export async function getPlanificacionAtletaData(atletaId) {
         }
       : null,
     sesiones,
+  };
+}
+
+export async function getPropuestaNuevaSemanaData(atletaId) {
+  const { atleta, objetivo } = await getContextoPlanificacionOrThrow(atletaId);
+
+  const ultimaSemanaResult = await query(
+    `SELECT id, fecha_inicio, fecha_fin
+     FROM semana_entrenamiento
+     WHERE objetivo_id = $1
+     ORDER BY fecha_fin DESC, id DESC
+     LIMIT 1;`,
+    [objetivo.id]
+  );
+
+  let fecha_inicio_sugerida;
+  let fuente_sugerencia;
+
+  if (ultimaSemanaResult.rows.length > 0) {
+    fecha_inicio_sugerida = plusDaysISO(normalizeDateInputToIsoDate(ultimaSemanaResult.rows[0].fecha_fin), 1);
+    fuente_sugerencia = 'dia_siguiente_ultima_semana';
+  } else {
+    fecha_inicio_sugerida = toIsoDateUTC(new Date());
+    fuente_sugerencia = 'fecha_actual';
+  }
+
+  const fecha_fin_calculada = plusDaysISO(fecha_inicio_sugerida, 6);
+
+  return {
+    atleta: {
+      id: atleta.id,
+      nombre: atleta.nombre,
+    },
+    objetivo: {
+      id: objetivo.id,
+      nombre: objetivo.nombre,
+      fecha_objetivo: objetivo.fecha_objetivo,
+    },
+    propuesta: {
+      fecha_inicio_sugerida,
+      fecha_fin_calculada,
+      fuente_sugerencia,
+    },
+  };
+}
+
+export async function createSemanaDesdePlanificacionData({ atletaId, fecha_inicio, fecha_fin: fecha_fin_input }) {
+  if (fecha_fin_input !== undefined) {
+    throw new ServiceError(400, 'No se permite informar fecha_fin; se calcula automáticamente desde fecha_inicio');
+  }
+
+  const { atleta, objetivo } = await getContextoPlanificacionOrThrow(atletaId);
+  const fechaInicio = parseIsoDateOrThrow(fecha_inicio);
+  const fecha_inicio_normalizada = toIsoDateUTC(fechaInicio);
+  const fecha_fin = plusDaysISO(fecha_inicio_normalizada, 6);
+
+  let insertResult;
+  try {
+    insertResult = await query(
+      `INSERT INTO semana_entrenamiento (objetivo_id, fecha_inicio, fecha_fin)
+       VALUES ($1, $2, $3)
+       RETURNING *;`,
+      [objetivo.id, fecha_inicio_normalizada, fecha_fin]
+    );
+  } catch (error) {
+    // PostgreSQL EXCLUDE constraint: no_solapamiento_fechas
+    if (error.code === '23P01') {
+      throw new ServiceError(409, 'La semana propuesta se solapa con una semana existente');
+    }
+    throw error;
+  }
+
+  return {
+    atleta: {
+      id: atleta.id,
+      nombre: atleta.nombre,
+    },
+    objetivo: {
+      id: objetivo.id,
+      nombre: objetivo.nombre,
+      fecha_objetivo: objetivo.fecha_objetivo,
+    },
+    semana: insertResult.rows[0],
   };
 }

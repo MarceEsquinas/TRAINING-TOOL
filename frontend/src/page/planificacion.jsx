@@ -1,12 +1,46 @@
 import { useEffect, useMemo, useState } from 'react'
-import { fetchPlanificacion } from '../services/planificacionApi'
+import {
+  fetchPlanificacion,
+  fetchPropuestaNuevaSemana,
+  createSemanaPlanificacion,
+} from '../services/planificacionApi'
 import { formatDate } from '../utils/dateFormat'
+
+function addDaysToIsoDate(isoDate, days) {
+  if (!isoDate) return ''
+  const date = new Date(`${isoDate}T00:00:00.000Z`)
+  if (Number.isNaN(date.getTime())) return ''
+  date.setUTCDate(date.getUTCDate() + days)
+  return date.toISOString().slice(0, 10)
+}
 
 function Planificacion({ atletaId, onBack }) {
   // Estado de pantalla: datos, carga en curso y error de red/backend.
   const [planificacionData, setPlanificacionData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [createFlowOpen, setCreateFlowOpen] = useState(false)
+  const [creatingWeek, setCreatingWeek] = useState(false)
+  const [propuestaLoading, setPropuestaLoading] = useState(false)
+  const [propuestaError, setPropuestaError] = useState('')
+  const [createError, setCreateError] = useState('')
+  const [createSuccess, setCreateSuccess] = useState('')
+  const [fechaInicioInput, setFechaInicioInput] = useState('')
+  const [fechaFinPreview, setFechaFinPreview] = useState('')
+  const [propuestaFuente, setPropuestaFuente] = useState('')
+
+  async function loadPlanificacion() {
+    setLoading(true)
+    setError('')
+    try {
+      const data = await fetchPlanificacion(atletaId)
+      setPlanificacionData(data)
+    } catch (loadError) {
+      setError(loadError.message || 'Error al cargar la planificación')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   // Carga inicial de la planificación para el atleta seleccionado.
   useEffect(() => {
@@ -44,6 +78,76 @@ function Planificacion({ atletaId, onBack }) {
   const semana = useMemo(() => planificacionData?.semana || null, [planificacionData])
   const sesiones = useMemo(() => planificacionData?.sesiones || [], [planificacionData])
 
+  async function handleOpenCreateWeek() {
+    try {
+      setCreateFlowOpen(true)
+      setPropuestaLoading(true)
+      setPropuestaError('')
+      setCreateError('')
+      setCreateSuccess('')
+
+      const propuestaData = await fetchPropuestaNuevaSemana(atletaId)
+      const fechaInicio = propuestaData?.propuesta?.fecha_inicio_sugerida || ''
+      const fechaFin = propuestaData?.propuesta?.fecha_fin_calculada || addDaysToIsoDate(fechaInicio, 6)
+
+      setFechaInicioInput(fechaInicio)
+      setFechaFinPreview(fechaFin)
+      setPropuestaFuente(propuestaData?.propuesta?.fuente_sugerencia || '')
+    } catch (proposalError) {
+      setPropuestaError(proposalError.message || 'No se pudo cargar la propuesta de semana')
+    } finally {
+      setPropuestaLoading(false)
+    }
+  }
+
+  function handleFechaInicioChange(event) {
+    const newStartDate = event.target.value
+    setFechaInicioInput(newStartDate)
+    setFechaFinPreview(addDaysToIsoDate(newStartDate, 6))
+    setCreateError('')
+    setCreateSuccess('')
+  }
+
+  function handleCancelCreateWeek() {
+    setCreateFlowOpen(false)
+    setPropuestaError('')
+    setCreateError('')
+    setCreateSuccess('')
+    setFechaInicioInput('')
+    setFechaFinPreview('')
+    setPropuestaFuente('')
+  }
+
+  async function handleConfirmCreateWeek() {
+    if (!fechaInicioInput) {
+      setCreateError('Debes seleccionar una fecha de inicio')
+      return
+    }
+
+    try {
+      setCreatingWeek(true)
+      setCreateError('')
+      setCreateSuccess('')
+      await createSemanaPlanificacion(atletaId, fechaInicioInput)
+      setCreateSuccess('Semana creada correctamente')
+      await loadPlanificacion()
+    } catch (createWeekError) {
+      setCreateError(createWeekError.message || 'No se pudo crear la semana')
+    } finally {
+      setCreatingWeek(false)
+    }
+  }
+
+  const fuenteSugerenciaLabel = useMemo(() => {
+    if (propuestaFuente === 'dia_siguiente_ultima_semana') {
+      return 'Sugerencia basada en la última semana creada'
+    }
+    if (propuestaFuente === 'fecha_actual') {
+      return 'Sugerencia basada en la fecha actual'
+    }
+    return ''
+  }, [propuestaFuente])
+
   return (
     <main className="planificacion">
       <header className="planificacion__header">
@@ -52,6 +156,18 @@ function Planificacion({ atletaId, onBack }) {
         </button>
         <h2>Planificación del atleta</h2>
         <p>¿Qué necesito saber para planificar el entrenamiento de este atleta?</p>
+        {!loading && !error && (
+          <div className="planificacion__actions planificacion__actions--top">
+            <button
+              className="planificacion__back"
+              type="button"
+              onClick={handleOpenCreateWeek}
+              disabled={propuestaLoading || creatingWeek}
+            >
+              {propuestaLoading ? 'Preparando semana...' : 'Crear semana'}
+            </button>
+          </div>
+        )}
       </header>
 
       {/* Estados de experiencia: primero carga y luego error si existe. */}
@@ -60,6 +176,62 @@ function Planificacion({ atletaId, onBack }) {
 
       {!loading && !error && (
         <section className="planificacion__content" aria-label="Contexto de planificación">
+          {createFlowOpen && (
+            <article className="planificacion__card">
+              <h3>Nueva semana de entrenamiento</h3>
+
+              {propuestaLoading && <p>Cargando propuesta...</p>}
+
+              {!propuestaLoading && propuestaError && <p>{propuestaError}</p>}
+
+              {!propuestaLoading && !propuestaError && (
+                <>
+                  {fuenteSugerenciaLabel && (
+                    <p className="planificacion__hint">{fuenteSugerenciaLabel}</p>
+                  )}
+
+                  <div className="planificacion__grid">
+                    <label className="planificacion__field" htmlFor="fecha-inicio-semana">
+                      <span className="field-label">Fecha inicio</span>
+                      <input
+                        id="fecha-inicio-semana"
+                        type="date"
+                        value={fechaInicioInput}
+                        onChange={handleFechaInicioChange}
+                      />
+                    </label>
+                    <div>
+                      <span className="field-label">Fecha fin calculada</span>
+                      <strong>{formatDate(fechaFinPreview)}</strong>
+                    </div>
+                  </div>
+
+                  {createError && <p>{createError}</p>}
+                  {createSuccess && <p className="planificacion__success">{createSuccess}</p>}
+
+                  <div className="planificacion__actions">
+                    <button
+                      className="planificacion__back"
+                      type="button"
+                      onClick={handleConfirmCreateWeek}
+                      disabled={creatingWeek || propuestaLoading}
+                    >
+                      {creatingWeek ? 'Creando semana...' : 'Confirmar creación'}
+                    </button>
+                    <button
+                      className="planificacion__back"
+                      type="button"
+                      onClick={handleCancelCreateWeek}
+                      disabled={creatingWeek}
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                </>
+              )}
+            </article>
+          )}
+
           <article className="planificacion__card">
             <h3>Contexto actual</h3>
             <div className="planificacion__grid">

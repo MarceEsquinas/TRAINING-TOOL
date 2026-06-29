@@ -505,6 +505,35 @@
   flex-wrap: wrap;
 }
 
+.planificacion__actions--top {
+  margin-top: 14px;
+}
+
+.planificacion__field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.planificacion__field input[type='date'] {
+  border: 1px solid #d9d1b1;
+  background: #fffef8;
+  color: #232323;
+  font: inherit;
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+
+.planificacion__hint {
+  margin-top: 0;
+  color: #6d623f;
+}
+
+.planificacion__success {
+  color: #267a44;
+  font-weight: 600;
+}
+
 .planificacion__sessions-list {
   list-style: none;
   margin: 14px 0 0;

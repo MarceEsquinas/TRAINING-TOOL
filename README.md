@@ -238,6 +238,21 @@ Obtiene la información necesaria para planificar el entrenamiento de un atleta 
 }
 ```
 
+#### GET /planificacion/:atletaId/semanas/propuesta
+Obtiene una propuesta de nueva semana para el objetivo activo del atleta, con `fecha_inicio_sugerida` y `fecha_fin_calculada`.
+
+#### POST /planificacion/:atletaId/semanas
+Crea una nueva semana asociada a la planificación activa del atleta.
+
+**Body**:
+```json
+{
+  "fecha_inicio": "2026-06-23"
+}
+```
+
+**Regla**: `fecha_fin` no se envía desde frontend; se calcula en backend como `fecha_inicio + 6 días`.
+
 #### GET /historial/atletas/:atletaId
 Obtiene el historial completo de un atleta: objetivos, planificación histórica y feedback resumido.
 

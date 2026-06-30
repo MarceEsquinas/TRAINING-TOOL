@@ -524,6 +524,37 @@
   padding: 10px 12px;
 }
 
+.planificacion__field input[type='text'],
+.planificacion__field input[type='number'],
+.planificacion__field textarea {
+  border: 1px solid #d9d1b1;
+  background: #fffef8;
+  color: #232323;
+  font: inherit;
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+
+.planificacion__field textarea {
+  resize: vertical;
+  min-height: 82px;
+}
+
+.planificacion__session-create {
+  margin-top: 12px;
+  margin-bottom: 14px;
+  padding: 14px;
+  border: 1px solid #e6dfc7;
+  border-radius: 12px;
+  background: #fffdf8;
+}
+
+.planificacion__session-form-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
 .planificacion__hint {
   margin-top: 0;
   color: #6d623f;
@@ -547,8 +578,15 @@
   border-radius: 12px;
   padding: 12px;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  grid-template-columns: 60px minmax(220px, 1.6fr) minmax(220px, 1.4fr) minmax(130px, 0.8fr);
   gap: 10px;
+  align-items: center;
+}
+
+.planificacion__session-item--header {
+  background: #faf6e9;
+  font-weight: 700;
+  border-style: dashed;
 }
 
 .historial {
@@ -813,6 +851,10 @@
 
   .historial__objective-meta {
     align-items: flex-start;
+  }
+
+  .planificacion__session-item {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 

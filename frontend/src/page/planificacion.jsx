@@ -3,6 +3,7 @@ import {
   fetchPlanificacion,
   fetchPropuestaNuevaSemana,
   createSemanaPlanificacion,
+  createSesionPlanificacion,
 } from '../services/planificacionApi'
 import { formatDate } from '../utils/dateFormat'
 
@@ -28,6 +29,13 @@ function Planificacion({ atletaId, onBack }) {
   const [fechaInicioInput, setFechaInicioInput] = useState('')
   const [fechaFinPreview, setFechaFinPreview] = useState('')
   const [propuestaFuente, setPropuestaFuente] = useState('')
+  const [createSesionOpen, setCreateSesionOpen] = useState(false)
+  const [creatingSesion, setCreatingSesion] = useState(false)
+  const [sesionDescripcion, setSesionDescripcion] = useState('')
+  const [sesionObservaciones, setSesionObservaciones] = useState('')
+  const [sesionKmPlanificados, setSesionKmPlanificados] = useState('')
+  const [sesionError, setSesionError] = useState('')
+  const [sesionSuccess, setSesionSuccess] = useState('')
 
   async function loadPlanificacion() {
     setLoading(true)
@@ -135,6 +143,62 @@ function Planificacion({ atletaId, onBack }) {
       setCreateError(createWeekError.message || 'No se pudo crear la semana')
     } finally {
       setCreatingWeek(false)
+    }
+  }
+
+  function resetSesionForm() {
+    setSesionDescripcion('')
+    setSesionObservaciones('')
+    setSesionKmPlanificados('')
+  }
+
+  function handleOpenCreateSesion() {
+    setCreateSesionOpen(true)
+    setSesionError('')
+    setSesionSuccess('')
+  }
+
+  function handleCancelCreateSesion() {
+    setCreateSesionOpen(false)
+    setSesionError('')
+    setSesionSuccess('')
+    resetSesionForm()
+  }
+
+  async function handleCreateSesion() {
+    if (!semana?.id) {
+      setSesionError('Debes seleccionar una semana antes de crear una sesión')
+      return
+    }
+
+    if (!sesionDescripcion.trim()) {
+      setSesionError('La descripción es obligatoria')
+      return
+    }
+
+    if (sesionKmPlanificados === '' || Number.isNaN(Number(sesionKmPlanificados)) || Number(sesionKmPlanificados) < 0) {
+      setSesionError('Los kilómetros planificados deben ser un número mayor o igual a 0')
+      return
+    }
+
+    try {
+      setCreatingSesion(true)
+      setSesionError('')
+      setSesionSuccess('')
+
+      const data = await createSesionPlanificacion(atletaId, semana.id, {
+        descripcion: sesionDescripcion.trim(),
+        observaciones: sesionObservaciones.trim(),
+        kilometros_planificados: Number(sesionKmPlanificados),
+      })
+
+      setSesionSuccess(`Sesión ${data?.sesion?.orden || ''} creada correctamente`)
+      resetSesionForm()
+      await loadPlanificacion()
+    } catch (createSesionError) {
+      setSesionError(createSesionError.message || 'No se pudo crear la sesión')
+    } finally {
+      setCreatingSesion(false)
     }
   }
 
@@ -284,34 +348,94 @@ function Planificacion({ atletaId, onBack }) {
           <article className="planificacion__card">
             <div className="planificacion__sessions-head">
               <h3>Sesiones de la semana</h3>
+              <button
+                className="planificacion__back"
+                type="button"
+                onClick={handleOpenCreateSesion}
+                disabled={!semana || creatingSesion}
+              >
+                Crear sesión
+              </button>
             </div>
+
+            {createSesionOpen && (
+              <div className="planificacion__session-create">
+                <div className="planificacion__session-form-grid">
+                  <label className="planificacion__field" htmlFor="sesion-descripcion">
+                    <span className="field-label">Descripción</span>
+                    <input
+                      id="sesion-descripcion"
+                      type="text"
+                      value={sesionDescripcion}
+                      onChange={(event) => setSesionDescripcion(event.target.value)}
+                      placeholder="Rodaje suave"
+                    />
+                  </label>
+
+                  <label className="planificacion__field" htmlFor="sesion-observaciones">
+                    <span className="field-label">Observaciones</span>
+                    <textarea
+                      id="sesion-observaciones"
+                      value={sesionObservaciones}
+                      onChange={(event) => setSesionObservaciones(event.target.value)}
+                      placeholder="No superar zona 2"
+                      rows={3}
+                    />
+                  </label>
+
+                  <label className="planificacion__field" htmlFor="sesion-km-planificados">
+                    <span className="field-label">Km planificados</span>
+                    <input
+                      id="sesion-km-planificados"
+                      type="number"
+                      min="0"
+                      step="0.1"
+                      value={sesionKmPlanificados}
+                      onChange={(event) => setSesionKmPlanificados(event.target.value)}
+                    />
+                  </label>
+                </div>
+
+                {sesionError && <p>{sesionError}</p>}
+                {sesionSuccess && <p className="planificacion__success">{sesionSuccess}</p>}
+
+                <div className="planificacion__actions">
+                  <button
+                    className="planificacion__back"
+                    type="button"
+                    onClick={handleCreateSesion}
+                    disabled={creatingSesion || !semana}
+                  >
+                    {creatingSesion ? 'Creando sesión...' : 'Guardar sesión'}
+                  </button>
+                  <button
+                    className="planificacion__back"
+                    type="button"
+                    onClick={handleCancelCreateSesion}
+                    disabled={creatingSesion}
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            )}
 
             {sesiones.length === 0 && <p>Esta semana todavía no tiene sesiones planificadas.</p>}
 
             {sesiones.length > 0 && (
-              <ul className="planificacion__sessions-list">
+              <ul className="planificacion__sessions-list" role="list">
+                <li className="planificacion__session-item planificacion__session-item--header" aria-hidden="true">
+                  <span>Orden</span>
+                  <span>Descripción</span>
+                  <span>Observaciones</span>
+                  <span>Km planificados</span>
+                </li>
                 {sesiones.map((sesion) => (
                   <li key={sesion.id} className="planificacion__session-item">
-                    <div>
-                      <span className="field-label">Orden</span>
-                      <strong>{sesion.orden || '-'}</strong>
-                    </div>
-                    <div>
-                      <span className="field-label">Descripción</span>
-                      <strong>{sesion.descripcion || '-'}</strong>
-                    </div>
-                    <div>
-                      <span className="field-label">Km planificados</span>
-                      <strong>{sesion.kilometros_planificados ?? '-'}</strong>
-                    </div>
-                    <div>
-                      <span className="field-label">Km realizados</span>
-                      <strong>{sesion.kilometros_realizados ?? '-'}</strong>
-                    </div>
-                    <div>
-                      <span className="field-label">Estado</span>
-                      <strong>{sesion.realizada ? 'Realizada' : 'Pendiente'}</strong>
-                    </div>
+                    <strong>{sesion.orden || '-'}</strong>
+                    <span>{sesion.descripcion || '-'}</span>
+                    <span>{sesion.observaciones || '-'}</span>
+                    <span>{sesion.kilometros_planificados ?? '-'} km</span>
                   </li>
                 ))}
               </ul>

@@ -12,7 +12,16 @@ export async function findSesionEntrenamientoById(id) {
 }
 
 export async function createSesionEntrenamiento(payload) {
-  const { semana_id, orden, descripcion, kilometros_planificados } = payload ?? {};
+  const {
+    semana_id,
+    orden,
+    fecha_sesion,
+    descripcion,
+    observaciones,
+    kilometros_planificados,
+    kilometros_realizados,
+    realizada,
+  } = payload ?? {};
 
   if (!semana_id) {
     throw new ServiceError(400, 'El semana_id es requerido');
@@ -23,21 +32,42 @@ export async function createSesionEntrenamiento(payload) {
   if (!descripcion || String(descripcion).trim() === '') {
     throw new ServiceError(400, 'La descripción es requerida');
   }
+  if (!fecha_sesion) {
+    throw new ServiceError(400, 'La fecha_sesion es requerida');
+  }
 
   const sql = `
     INSERT INTO sesion_entrenamiento
-    (semana_id, orden, descripcion, kilometros_planificados)
-    VALUES ($1, $2, $3, $4)
+    (semana_id, orden, fecha_sesion, descripcion, observaciones, kilometros_planificados, kilometros_realizados, realizada)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
     RETURNING *;
   `;
 
-  const params = [semana_id, String(orden).trim(), String(descripcion).trim(), kilometros_planificados || null];
+  const params = [
+    semana_id,
+    String(orden).trim(),
+    fecha_sesion,
+    String(descripcion).trim(),
+    observaciones ? String(observaciones).trim() : null,
+    kilometros_planificados || null,
+    kilometros_realizados || null,
+    realizada === undefined ? false : Boolean(realizada),
+  ];
   const result = await query(sql, params);
   return result.rows[0];
 }
 
 export async function updateSesionEntrenamiento(id, payload) {
-  const { semana_id, orden, descripcion, kilometros_planificados } = payload ?? {};
+  const {
+    semana_id,
+    orden,
+    fecha_sesion,
+    descripcion,
+    observaciones,
+    kilometros_planificados,
+    kilometros_realizados,
+    realizada,
+  } = payload ?? {};
 
   const fields = [];
   const params = [];
@@ -55,9 +85,25 @@ export async function updateSesionEntrenamiento(id, payload) {
     fields.push(`descripcion = $${idx++}`);
     params.push(String(descripcion).trim());
   }
+  if (observaciones !== undefined) {
+    fields.push(`observaciones = $${idx++}`);
+    params.push(observaciones === null ? null : String(observaciones).trim());
+  }
+  if (fecha_sesion !== undefined) {
+    fields.push(`fecha_sesion = $${idx++}`);
+    params.push(fecha_sesion);
+  }
   if (kilometros_planificados !== undefined) {
     fields.push(`kilometros_planificados = $${idx++}`);
     params.push(kilometros_planificados);
+  }
+  if (kilometros_realizados !== undefined) {
+    fields.push(`kilometros_realizados = $${idx++}`);
+    params.push(kilometros_realizados);
+  }
+  if (realizada !== undefined) {
+    fields.push(`realizada = $${idx++}`);
+    params.push(Boolean(realizada));
   }
 
   if (fields.length === 0) {

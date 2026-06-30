@@ -129,3 +129,48 @@ export async function createSemanaPlanificacion(atletaId, fechaInicio) {
 
   return data.data
 }
+
+export async function createSesionPlanificacion(atletaId, semanaId, payload) {
+  if (!atletaId) {
+    throw new Error('Se requiere atletaId para crear una sesión')
+  }
+
+  if (!semanaId) {
+    throw new Error('Se requiere semanaId para crear una sesión')
+  }
+
+  let response
+  try {
+    response = await fetch(`${API_BASE_URL}/planificacion/${atletaId}/semanas/${semanaId}/sesiones`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload || {}),
+    })
+  } catch (error) {
+    throw mapNetworkError(error, 'No se pudo crear la sesión de entrenamiento')
+  }
+
+  if (!response.ok) {
+    const backendMessage = await getErrorMessageFromResponse(response, 'No se pudo crear la sesión de entrenamiento')
+    if (response.status === 400) {
+      throw new Error(backendMessage || 'Los datos de la sesión no son válidos')
+    }
+    if (response.status === 404) {
+      throw new Error(backendMessage || 'No se encontró la semana seleccionada')
+    }
+    if (response.status === 409) {
+      throw new Error(backendMessage)
+    }
+    throw new Error(backendMessage)
+  }
+
+  const data = await response.json()
+
+  if (!data.success || !data.data?.sesion) {
+    throw new Error('El backend devolvió una respuesta de creación de sesión no válida')
+  }
+
+  return data.data
+}

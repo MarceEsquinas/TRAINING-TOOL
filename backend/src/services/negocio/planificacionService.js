@@ -146,6 +146,7 @@ export async function getPlanificacionAtletaData(atletaId) {
        COALESCE(sa.km_realizados_semana, 0) AS km_realizados_semana,
        ses.id AS sesion_id,
        ses.orden,
+      to_jsonb(ses)->>'observaciones' AS observaciones,
        ses.descripcion,
        ses.kilometros_planificados,
        ses.kilometros_realizados,
@@ -175,6 +176,7 @@ export async function getPlanificacionAtletaData(atletaId) {
       id: row.sesion_id,
       orden: row.orden,
       descripcion: row.descripcion,
+      observaciones: row.observaciones,
       kilometros_planificados: row.kilometros_planificados !== null ? Number(row.kilometros_planificados) : null,
       kilometros_realizados: row.kilometros_realizados !== null ? Number(row.kilometros_realizados) : null,
       realizada: row.realizada,
@@ -288,5 +290,167 @@ export async function createSemanaDesdePlanificacionData({ atletaId, fecha_inici
       fecha_objetivo: objetivo.fecha_objetivo,
     },
     semana: insertResult.rows[0],
+  };
+}
+
+function parseRequiredNonNegativeNumber(value, fieldName) {
+  if (value === undefined || value === null || String(value).trim() === '') {
+    throw new ServiceError(400, `El campo ${fieldName} es requerido`);
+  }
+
+  const parsed = Number(value);
+  if (Number.isNaN(parsed)) {
+    throw new ServiceError(400, `El campo ${fieldName} debe ser numérico`);
+  }
+  if (parsed < 0) {
+    throw new ServiceError(400, `El campo ${fieldName} no puede ser negativo`);
+  }
+
+  return parsed;
+}
+
+async function getSemanaDelAtletaOrThrow({ atletaId, semanaId }) {
+  if (!semanaId || Number.isNaN(Number(semanaId))) {
+    throw new ServiceError(400, 'El semanaId debe ser un número válido');
+  }
+
+  const result = await query(
+    `SELECT
+       s.id,
+       s.objetivo_id,
+       s.fecha_inicio,
+       s.fecha_fin,
+       o.atleta_id
+     FROM semana_entrenamiento s
+     INNER JOIN objetivo o ON o.id = s.objetivo_id
+     WHERE s.id = $1
+     LIMIT 1;`,
+    [semanaId]
+  );
+
+  if (result.rows.length === 0) {
+    throw new ServiceError(404, `No se encontró semana con id ${semanaId}`);
+  }
+
+  const semana = result.rows[0];
+  if (Number(semana.atleta_id) !== Number(atletaId)) {
+    throw new ServiceError(409, 'La semana seleccionada no pertenece al atleta indicado');
+  }
+
+  return semana;
+}
+
+function calculateFechaSesionISO({ fechaInicio, fechaFin, ordenNumerico }) {
+  const inicio = parseIsoDateOrThrow(fechaInicio);
+  const fin = parseIsoDateOrThrow(fechaFin);
+  const diffMs = fin.getTime() - inicio.getTime();
+  const totalDias = Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
+  const desplazamiento = Math.max(0, Math.min(ordenNumerico - 1, totalDias));
+
+  inicio.setUTCDate(inicio.getUTCDate() + desplazamiento);
+  return toIsoDateUTC(inicio);
+}
+
+async function getSesionEntrenamientoSchemaCapabilities() {
+  const result = await query(
+    `SELECT column_name
+     FROM information_schema.columns
+     WHERE table_schema = 'public'
+       AND table_name = 'sesion_entrenamiento';`
+  );
+
+  const names = new Set(result.rows.map((row) => row.column_name));
+  return {
+    hasObservaciones: names.has('observaciones'),
+    hasFechaSesion: names.has('fecha_sesion'),
+  };
+}
+
+export async function createSesionSemanaDesdePlanificacionData({
+  atletaId,
+  semanaId,
+  descripcion,
+  observaciones,
+  kilometros_planificados,
+}) {
+  const { atleta } = await getContextoPlanificacionOrThrow(atletaId);
+  const semana = await getSemanaDelAtletaOrThrow({ atletaId, semanaId });
+
+  const descripcionNormalizada = String(descripcion ?? '').trim();
+  if (!descripcionNormalizada) {
+    throw new ServiceError(400, 'La descripción es requerida');
+  }
+
+  const observacionesNormalizadas = String(observaciones ?? '').trim() || null;
+  const kmPlanificados = parseRequiredNonNegativeNumber(kilometros_planificados, 'kilometros_planificados');
+
+  const siguienteOrdenResult = await query(
+    `SELECT
+       (
+         COALESCE(
+           MAX(
+             CASE
+               WHEN orden ~ '^[0-9]+$' THEN orden::integer
+               ELSE 0
+             END
+           ),
+           0
+         ) + 1
+       ) AS siguiente_orden
+     FROM sesion_entrenamiento
+     WHERE semana_id = $1;`,
+    [semana.id]
+  );
+
+  const siguienteOrden = Number(siguienteOrdenResult.rows[0]?.siguiente_orden ?? 1);
+  const fechaSesion = calculateFechaSesionISO({
+    fechaInicio: semana.fecha_inicio,
+    fechaFin: semana.fecha_fin,
+    ordenNumerico: siguienteOrden,
+  });
+
+  const capabilities = await getSesionEntrenamientoSchemaCapabilities();
+  const columns = ['semana_id', 'orden', 'descripcion', 'kilometros_planificados'];
+  const values = [semana.id, String(siguienteOrden), descripcionNormalizada, kmPlanificados];
+
+  if (capabilities.hasObservaciones) {
+    columns.push('observaciones');
+    values.push(observacionesNormalizadas);
+  }
+
+  if (capabilities.hasFechaSesion) {
+    columns.push('fecha_sesion');
+    values.push(fechaSesion);
+  }
+
+  const placeholders = values.map((_, index) => `$${index + 1}`);
+
+  let insertResult;
+  try {
+    insertResult = await query(
+      `INSERT INTO sesion_entrenamiento
+       (${columns.join(', ')})
+       VALUES (${placeholders.join(', ')})
+       RETURNING *;`,
+      values
+    );
+  } catch (error) {
+    if (error.code === '23505') {
+      throw new ServiceError(409, 'No se pudo asignar el orden de la sesión. Inténtalo nuevamente');
+    }
+    throw error;
+  }
+
+  return {
+    atleta: {
+      id: atleta.id,
+      nombre: atleta.nombre,
+    },
+    semana: {
+      id: semana.id,
+      fecha_inicio: semana.fecha_inicio,
+      fecha_fin: semana.fecha_fin,
+    },
+    sesion: insertResult.rows[0],
   };
 }

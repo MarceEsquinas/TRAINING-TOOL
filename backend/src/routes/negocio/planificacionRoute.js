@@ -3,6 +3,7 @@ import {
 	getPlanificacionAtleta,
 	getPropuestaNuevaSemana,
 	createSemanaDesdePlanificacion,
+	createSesionSemanaDesdePlanificacion,
 } from '../../controllers/negocio/planificacionController.js';
 
 const router = express.Router();
@@ -11,5 +12,6 @@ const router = express.Router();
 router.get('/planificacion/:atletaId', getPlanificacionAtleta);
 router.get('/planificacion/:atletaId/semanas/propuesta', getPropuestaNuevaSemana);
 router.post('/planificacion/:atletaId/semanas', createSemanaDesdePlanificacion);
+router.post('/planificacion/:atletaId/semanas/:semanaId/sesiones', createSesionSemanaDesdePlanificacion);
 
 export default router;

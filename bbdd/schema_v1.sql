@@ -172,7 +172,9 @@ CREATE TABLE sesion_entrenamiento (
     id SERIAL PRIMARY KEY,
     semana_id INTEGER NOT NULL,
     orden VARCHAR(50) NOT NULL DEFAULT '1',
+    fecha_sesion DATE NOT NULL,
     descripcion TEXT NOT NULL,
+    observaciones TEXT,
     kilometros_planificados NUMERIC(5, 2),
     kilometros_realizados NUMERIC(6, 2),
     realizada BOOLEAN NOT NULL DEFAULT false,
@@ -188,8 +190,10 @@ CREATE TABLE sesion_entrenamiento (
 
 COMMENT ON TABLE sesion_entrenamiento IS 'Sesiones de entrenamiento dentro de una semana';
 COMMENT ON COLUMN sesion_entrenamiento.semana_id IS 'FK a semana_entrenamiento (cascade delete)';
-COMMENT ON COLUMN sesion_entrenamiento.orden IS 'Orden de la sesión dentro de la semana; no hay fecha fija para mayor flexibilidad';
+COMMENT ON COLUMN sesion_entrenamiento.orden IS 'Orden de la sesión dentro de la semana; se calcula automáticamente';
+COMMENT ON COLUMN sesion_entrenamiento.fecha_sesion IS 'Fecha interna calculada automáticamente por la aplicación, siempre dentro del rango de la semana';
 COMMENT ON COLUMN sesion_entrenamiento.descripcion IS 'Descripción libre: "60 min Z2", "12 km suaves", "20 cal + 6x1000 + 10 enfr"';
+COMMENT ON COLUMN sesion_entrenamiento.observaciones IS 'Indicaciones opcionales del entrenador para el atleta';
 COMMENT ON COLUMN sesion_entrenamiento.kilometros_planificados IS 'Km planificados para la sesión';
 COMMENT ON COLUMN sesion_entrenamiento.kilometros_realizados IS 'Km reales realizados en la sesión (registro manual)';
 COMMENT ON COLUMN sesion_entrenamiento.realizada IS 'Marca si la sesión fue completada/relevada';
@@ -198,6 +202,7 @@ COMMENT ON COLUMN sesion_entrenamiento.registrado_por IS 'Usuario que registró 
 
 CREATE INDEX idx_sesion_semana_id ON sesion_entrenamiento(semana_id);
 CREATE INDEX idx_sesion_semana_orden ON sesion_entrenamiento(semana_id, orden);
+CREATE INDEX idx_sesion_semana_fecha ON sesion_entrenamiento(semana_id, fecha_sesion);
 
 -- ====================================================================
 -- TABLA: feedback_semanal
@@ -407,12 +412,12 @@ INSERT INTO semana_entrenamiento (objetivo_id, fecha_inicio, fecha_fin)
 VALUES (1, '2026-06-02', '2026-06-08');
 
 -- Sesiones
-INSERT INTO sesion_entrenamiento (semana_id, fecha, descripcion, kilometros_planificados)
+INSERT INTO sesion_entrenamiento (semana_id, orden, fecha_sesion, descripcion, observaciones, kilometros_planificados)
 VALUES 
-    (1, '2026-06-02', '60 minutos Z2', 12.5),
-    (1, '2026-06-04', '20 cal + 6x1000 + 10 enfr', 14.0),
-    (1, '2026-06-06', '30 km suave', 30.0),
-    (1, '2026-06-08', '20 minutos Z1', 5.0);
+    (1, '1', '2026-06-02', '60 minutos Z2', 'Rodaje muy suave', 12.5),
+    (1, '2', '2026-06-04', '20 cal + 6x1000 + 10 enfr', 'Recuperar 2 minutos entre series', 14.0),
+    (1, '3', '2026-06-06', '30 km suave', 'No superar zona 2', 30.0),
+    (1, '4', '2026-06-08', '20 minutos Z1', 'Mantener buena técnica', 5.0);
 
 -- Feedback
 INSERT INTO feedback_semanal (semana_id, completada, sensaciones, molestias)

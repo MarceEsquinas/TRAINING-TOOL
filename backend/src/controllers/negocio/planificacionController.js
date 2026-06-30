@@ -2,6 +2,7 @@ import {
   getPlanificacionAtletaData,
   getPropuestaNuevaSemanaData,
   createSemanaDesdePlanificacionData,
+  createSesionSemanaDesdePlanificacionData,
 } from '../../services/negocio/planificacionService.js';
 import { ServiceError } from '../../services/serviceError.js';
 
@@ -73,6 +74,34 @@ export async function createSemanaDesdePlanificacion(req, res) {
     return res.status(500).json({
       success: false,
       message: 'Error al crear semana desde planificación',
+      error: error.message,
+    });
+  }
+}
+
+// Controlador para POST /planificacion/:atletaId/semanas/:semanaId/sesiones
+export async function createSesionSemanaDesdePlanificacion(req, res) {
+  try {
+    const { atletaId, semanaId } = req.params;
+    const data = await createSesionSemanaDesdePlanificacionData({
+      atletaId,
+      semanaId,
+      ...(req.body ?? {}),
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: 'Sesión creada exitosamente',
+      data,
+    });
+  } catch (error) {
+    if (error instanceof ServiceError) {
+      return res.status(error.status).json({ success: false, message: error.message });
+    }
+    console.error('Error al crear sesión desde planificación:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Error al crear sesión desde planificación',
       error: error.message,
     });
   }

@@ -72,7 +72,7 @@ export async function getHistorialFeedbackResumenByAtletaId(atletaId) {
        f.completada,
        COALESCE(
          nf_ultimo.resumen,
-         LEFT(COALESCE(f.comentario, f.sensaciones, f.molestias, f.motivo_no_completada, 'Sin resumen'), 180)
+         LEFT(COALESCE(to_jsonb(f)->>'comentario', f.sensaciones, f.molestias, f.motivo_no_completada, 'Sin resumen'), 180)
        ) AS resumen_corto,
        f.semana_id,
        s.fecha_inicio AS semana_fecha_inicio,
@@ -106,8 +106,9 @@ export async function getDetalleFeedbackById(feedbackId) {
        f.motivo_no_completada,
        f.sensaciones,
        f.molestias,
-       f.ritmo_rodaje,
-       f.comentario,
+      f.ritmo_rodaje,
+      f.ritmo_rodaje AS ritmo_medio,
+      to_jsonb(f)->>'comentario' AS comentario,
        f.created_at,
        f.updated_at,
        s.fecha_inicio AS semana_fecha_inicio,

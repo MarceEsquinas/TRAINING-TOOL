@@ -736,6 +736,20 @@
   color: #8e7d48;
 }
 
+.historial__feedback-empty {
+  color: #7b6a43;
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.historial__week-detail {
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid #e6dfc7;
+  border-radius: 12px;
+  background: #fffef8;
+}
+
 .historial__status {
   display: inline-flex;
   align-items: center;

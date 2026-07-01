@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { fetchDetalleFeedback, fetchHistorialAtleta } from '../services/historialApi'
 import { formatDate } from '../utils/dateFormat'
 
@@ -14,9 +14,11 @@ function Historial({ atletaId, onBack }) {
   const [historialData, setHistorialData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [feedbackDetalle, setFeedbackDetalle] = useState(null)
-  const [feedbackDetalleLoading, setFeedbackDetalleLoading] = useState(false)
-  const [feedbackDetalleError, setFeedbackDetalleError] = useState('')
+  const [feedbackExpandidoPorSemana, setFeedbackExpandidoPorSemana] = useState({})
+  const [feedbackDetallePorSemana, setFeedbackDetallePorSemana] = useState({})
+  const [feedbackLoadingPorSemana, setFeedbackLoadingPorSemana] = useState({})
+  const [feedbackErrorPorSemana, setFeedbackErrorPorSemana] = useState({})
+  const feedbackRequestSeqPorSemana = useRef({})
 
   useEffect(() => {
     let isMounted = true
@@ -27,8 +29,10 @@ function Historial({ atletaId, onBack }) {
         setError('')
         const data = await fetchHistorialAtleta(atletaId)
         if (isMounted) {
-          setFeedbackDetalle(null)
-          setFeedbackDetalleError('')
+          setFeedbackExpandidoPorSemana({})
+          setFeedbackDetallePorSemana({})
+          setFeedbackLoadingPorSemana({})
+          setFeedbackErrorPorSemana({})
           setHistorialData(data)
         }
       } catch (loadError) {
@@ -53,12 +57,13 @@ function Historial({ atletaId, onBack }) {
   const objetivos = useMemo(() => historialData?.objetivos || [], [historialData])
   const feedbackResumen = useMemo(() => historialData?.feedback_resumen || [], [historialData])
 
-  const feedbackPorSemana = useMemo(() => {
+  const feedbackPorObjetivoSemana = useMemo(() => {
     const resumenPorSemana = new Map()
 
     feedbackResumen.forEach((feedback) => {
-      if (!resumenPorSemana.has(feedback.semana_id)) {
-        resumenPorSemana.set(feedback.semana_id, feedback)
+      const key = `${Number(feedback.objetivo_id)}::${Number(feedback.semana_id)}`
+      if (!resumenPorSemana.has(key)) {
+        resumenPorSemana.set(key, feedback)
       }
     })
 
@@ -70,7 +75,8 @@ function Historial({ atletaId, onBack }) {
       const semanas = [...(objetivo.planificacion || [])].map((semana, index) => ({
         ...semana,
         numero: index + 1,
-        feedback: feedbackPorSemana.get(semana.semana_id) || null,
+        feedback:
+          feedbackPorObjetivoSemana.get(`${Number(objetivo.id)}::${Number(semana.semana_id)}`) || null,
       }))
 
       const primeraSemana = semanas[0] || null
@@ -94,18 +100,84 @@ function Historial({ atletaId, onBack }) {
         semanas,
       }
     })
-  }, [objetivos, feedbackPorSemana])
+  }, [objetivos, feedbackPorObjetivoSemana])
 
-  async function handleOpenDetalleFeedback(feedbackId) {
+  async function handleToggleDetalleFeedback(semanaId, feedbackId) {
+    const semanaIdNumerico = Number(semanaId)
+    const feedbackIdNumerico = Number(feedbackId)
+
+    if (!semanaIdNumerico || Number.isNaN(semanaIdNumerico)) {
+      return
+    }
+
+    if (!feedbackIdNumerico || Number.isNaN(feedbackIdNumerico)) {
+      setFeedbackErrorPorSemana((prev) => ({
+        ...prev,
+        [semanaIdNumerico]: 'No se encontró el identificador del feedback seleccionado',
+      }))
+      return
+    }
+
+    const estaExpandido = Boolean(feedbackExpandidoPorSemana[semanaIdNumerico])
+
+    if (estaExpandido) {
+      setFeedbackExpandidoPorSemana((prev) => ({
+        ...prev,
+        [semanaIdNumerico]: false,
+      }))
+      return
+    }
+
+    setFeedbackExpandidoPorSemana((prev) => ({
+      ...prev,
+      [semanaIdNumerico]: true,
+    }))
+
+    if (feedbackDetallePorSemana[semanaIdNumerico]) {
+      return
+    }
+
+    const requestId = (feedbackRequestSeqPorSemana.current[semanaIdNumerico] || 0) + 1
+    feedbackRequestSeqPorSemana.current[semanaIdNumerico] = requestId
+
     try {
-      setFeedbackDetalleLoading(true)
-      setFeedbackDetalleError('')
-      const data = await fetchDetalleFeedback(feedbackId)
-      setFeedbackDetalle(data)
+      setFeedbackLoadingPorSemana((prev) => ({
+        ...prev,
+        [semanaIdNumerico]: true,
+      }))
+      setFeedbackErrorPorSemana((prev) => ({
+        ...prev,
+        [semanaIdNumerico]: '',
+      }))
+
+      const data = await fetchDetalleFeedback(feedbackIdNumerico)
+
+      if (feedbackRequestSeqPorSemana.current[semanaIdNumerico] !== requestId) {
+        return
+      }
+
+      if (Number(data?.id) !== feedbackIdNumerico) {
+        throw new Error('El detalle recibido no coincide con el feedback solicitado')
+      }
+
+      setFeedbackDetallePorSemana((prev) => ({
+        ...prev,
+        [semanaIdNumerico]: data,
+      }))
     } catch (detailError) {
-      setFeedbackDetalleError(detailError.message || 'Error al cargar el detalle del feedback')
+      if (feedbackRequestSeqPorSemana.current[semanaIdNumerico] === requestId) {
+        setFeedbackErrorPorSemana((prev) => ({
+          ...prev,
+          [semanaIdNumerico]: detailError.message || 'Error al cargar el detalle del feedback',
+        }))
+      }
     } finally {
-      setFeedbackDetalleLoading(false)
+      if (feedbackRequestSeqPorSemana.current[semanaIdNumerico] === requestId) {
+        setFeedbackLoadingPorSemana((prev) => ({
+          ...prev,
+          [semanaIdNumerico]: false,
+        }))
+      }
     }
   }
 
@@ -161,89 +233,91 @@ function Historial({ atletaId, onBack }) {
                       Semana {semana.numero} · {formatDate(semana.fecha_inicio)} - {formatDate(semana.fecha_fin)} · {formatKilometros(semana.kilometros_realizados)} / {formatKilometros(semana.kilometros_planificados)}
                     </p>
 
-                    <div className="historial__feedback-row">
-                      <span className="historial__feedback-label">Feedback</span>
-                      <button
-                        className="historial__feedback-button"
-                        type="button"
-                        onClick={() => handleOpenDetalleFeedback(semana.feedback?.feedback_id)}
-                        disabled={!semana.feedback?.feedback_id}
-                      >
-                        Ver detalle
-                      </button>
-                    </div>
+                    {(() => {
+                      const semanaId = Number(semana.semana_id)
+                      const estaExpandido = Boolean(feedbackExpandidoPorSemana[semanaId])
+                      const detalle = feedbackDetallePorSemana[semanaId]
+                      const cargando = Boolean(feedbackLoadingPorSemana[semanaId])
+                      const errorDetalle = feedbackErrorPorSemana[semanaId]
+
+                      return (
+                        <>
+                          <div className="historial__feedback-row">
+                            <span className="historial__feedback-label">Feedback</span>
+                            {semana.feedback?.feedback_id ? (
+                              <button
+                                className="historial__feedback-button"
+                                type="button"
+                                onClick={() => handleToggleDetalleFeedback(semana.semana_id, semana.feedback?.feedback_id)}
+                              >
+                                {cargando ? 'Cargando...' : estaExpandido ? 'Ocultar detalle' : 'Ver detalle'}
+                              </button>
+                            ) : (
+                              <span className="historial__feedback-empty">Sin feedback</span>
+                            )}
+                          </div>
+
+                          {estaExpandido && (
+                            <div className="historial__week-detail" aria-label={`Detalle feedback semana ${semana.numero}`}>
+                              {cargando && <p>Cargando detalle...</p>}
+                              {!cargando && errorDetalle && <p>{errorDetalle}</p>}
+
+                              {!cargando && !errorDetalle && detalle && (
+                                <div className="historial__detail-body">
+                                  <div className="historial__detail-summary">
+                                    <span className={`historial__status historial__status--${detalle.completada ? 'activo' : 'finalizado'}`}>
+                                      {detalle.completada ? 'Completada' : 'No completada'}
+                                    </span>
+                                    <p className="historial__detail-week">
+                                      Semana {detalle.semana_id} · {formatDate(detalle.semana_fecha_inicio)} - {formatDate(detalle.semana_fecha_fin)}
+                                    </p>
+                                    {!detalle.completada && detalle.motivo_no_completada && (
+                                      <p className="historial__detail-reason">
+                                        Por qué no se completó: {detalle.motivo_no_completada}
+                                      </p>
+                                    )}
+                                  </div>
+
+                                  <dl className="historial__detail-grid">
+                                    <div>
+                                      <dt>Fecha</dt>
+                                      <dd>{formatDate(detalle.fecha_feedback || detalle.created_at)}</dd>
+                                    </div>
+                                    <div>
+                                      <dt>Completada</dt>
+                                      <dd>{detalle.completada ? 'Sí' : 'No'}</dd>
+                                    </div>
+                                    {!detalle.completada && (
+                                      <div className="historial__detail-fullwidth">
+                                        <dt>Motivo de no completada</dt>
+                                        <dd>{detalle.motivo_no_completada || '-'}</dd>
+                                      </div>
+                                    )}
+                                    <div>
+                                      <dt>Sensaciones</dt>
+                                      <dd>{detalle.sensaciones || '-'}</dd>
+                                    </div>
+                                    <div>
+                                      <dt>Ritmo medio</dt>
+                                      <dd>{detalle.ritmo_medio || detalle.ritmo_rodaje || '-'}</dd>
+                                    </div>
+                                    <div>
+                                      <dt>Molestias</dt>
+                                      <dd>{detalle.molestias || '-'}</dd>
+                                    </div>
+                                  </dl>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </>
+                      )
+                    })()}
                   </div>
                 ))}
               </div>
             </article>
           ))}
-
-          {feedbackDetalle && (
-            <aside className="historial__detail-card" aria-label="Detalle del feedback">
-              <div className="historial__detail-head">
-                <div>
-                  <p className="historial__eyebrow">Feedback seleccionado</p>
-                  <h2 className="historial__detail-title">
-                    {feedbackDetalle.objetivo_nombre || 'Detalle del feedback'}
-                  </h2>
-                </div>
-
-                <button
-                  className="historial__detail-close"
-                  type="button"
-                  onClick={() => setFeedbackDetalle(null)}
-                >
-                  Cerrar
-                </button>
-              </div>
-
-              {feedbackDetalleLoading && <p>Cargando detalle...</p>}
-              {feedbackDetalleError && !feedbackDetalleLoading && <p>{feedbackDetalleError}</p>}
-              {!feedbackDetalleLoading && !feedbackDetalleError && (
-                <div className="historial__detail-body">
-                  <div className="historial__detail-summary">
-                    <span className={`historial__status historial__status--${feedbackDetalle.completada ? 'activo' : 'finalizado'}`}>
-                      {feedbackDetalle.completada ? 'Completada' : 'No completada'}
-                    </span>
-                    <p className="historial__detail-week">
-                      Semana {feedbackDetalle.semana_id} · {formatDate(feedbackDetalle.semana_fecha_inicio)} - {formatDate(feedbackDetalle.semana_fecha_fin)}
-                    </p>
-                    <p className="historial__detail-meta">
-                      {feedbackDetalle.objetivo_nombre || '-'} · {feedbackDetalle.atleta_nombre || atleta?.nombre || '-'}
-                    </p>
-                    {!feedbackDetalle.completada && feedbackDetalle.motivo_no_completada && (
-                      <p className="historial__detail-reason">
-                        Por qué no se completó: {feedbackDetalle.motivo_no_completada}
-                      </p>
-                    )}
-                  </div>
-
-                  <dl className="historial__detail-grid">
-                    <div>
-                      <dt>Fecha</dt>
-                      <dd>{formatDate(feedbackDetalle.fecha_feedback || feedbackDetalle.created_at)}</dd>
-                    </div>
-                    <div>
-                      <dt>Sensaciones</dt>
-                      <dd>{feedbackDetalle.sensaciones || '-'}</dd>
-                    </div>
-                    <div>
-                      <dt>Molestias</dt>
-                      <dd>{feedbackDetalle.molestias || '-'}</dd>
-                    </div>
-                    <div>
-                      <dt>Ritmo medio</dt>
-                      <dd>{feedbackDetalle.ritmo_rodaje || '-'}</dd>
-                    </div>
-                    <div className="historial__detail-fullwidth">
-                      <dt>Comentario</dt>
-                      <dd>{feedbackDetalle.comentario || '-'}</dd>
-                    </div>
-                  </dl>
-                </div>
-              )}
-            </aside>
-          )}
         </section>
       )}
     </main>

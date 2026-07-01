@@ -3,6 +3,7 @@ import {
   getPropuestaNuevaSemanaData,
   createSemanaDesdePlanificacionData,
   createSesionSemanaDesdePlanificacionData,
+  registrarResultadoSesionDesdePlanificacionData,
 } from '../../services/negocio/planificacionService.js';
 import { ServiceError } from '../../services/serviceError.js';
 
@@ -102,6 +103,35 @@ export async function createSesionSemanaDesdePlanificacion(req, res) {
     return res.status(500).json({
       success: false,
       message: 'Error al crear sesión desde planificación',
+      error: error.message,
+    });
+  }
+}
+
+// Controlador para PATCH /planificacion/:atletaId/semanas/:semanaId/sesiones/:sesionId/resultado
+export async function registrarResultadoSesionDesdePlanificacion(req, res) {
+  try {
+    const { atletaId, semanaId, sesionId } = req.params;
+    const data = await registrarResultadoSesionDesdePlanificacionData({
+      atletaId,
+      semanaId,
+      sesionId,
+      ...(req.body ?? {}),
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: 'Resultado de sesión registrado exitosamente',
+      data,
+    });
+  } catch (error) {
+    if (error instanceof ServiceError) {
+      return res.status(error.status).json({ success: false, message: error.message });
+    }
+    console.error('Error al registrar resultado de sesión:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Error al registrar resultado de sesión',
       error: error.message,
     });
   }

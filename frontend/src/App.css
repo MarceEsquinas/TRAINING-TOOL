@@ -578,7 +578,7 @@
   border-radius: 12px;
   padding: 12px;
   display: grid;
-  grid-template-columns: 60px minmax(220px, 1.6fr) minmax(220px, 1.4fr) minmax(130px, 0.8fr);
+  grid-template-columns: 60px minmax(180px, 1.3fr) minmax(180px, 1.2fr) minmax(110px, 0.8fr) minmax(120px, 1fr) minmax(120px, 0.9fr) 110px;
   gap: 10px;
   align-items: center;
 }
@@ -587,6 +587,22 @@
   background: #faf6e9;
   font-weight: 700;
   border-style: dashed;
+}
+
+.planificacion__row-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.planificacion__row-input {
+  border: 1px solid #d9d1b1;
+  background: #fffef8;
+  color: #232323;
+  font: inherit;
+  border-radius: 10px;
+  padding: 8px 10px;
+  width: 100%;
 }
 
 .historial {

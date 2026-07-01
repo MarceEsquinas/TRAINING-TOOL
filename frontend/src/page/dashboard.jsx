@@ -76,7 +76,7 @@ function Dashboard({ onOpenPlanificacion, onOpenHistorial }) {
 
       return {
         id: atleta.atleta_id,
-        nombre: atleta.nombre || atleta.atleta_nombre,
+        nombre: atleta.atleta_nombre || atleta.nombre,
         objetivo: atleta.objetivo_nombre,
         fechaObjetivo: atleta.semana_fecha_fin || '-',
         diasRestantes: atleta.dias_hasta_objetivo,
@@ -211,7 +211,7 @@ function Dashboard({ onOpenPlanificacion, onOpenHistorial }) {
               <article className="athlete-card" key={atleta.id || atleta.nombre}>
                 <div className="athlete-card__head">
                   <div>
-                    <h3>{atleta.nombre}</h3>
+                    <h3 translate="no">{atleta.nombre}</h3>
                     <p className="athlete-card__objective">{atleta.objetivo}</p>
                   </div>
                   <span className={`status-pill status-pill--${atleta.estadoColor}`}>

@@ -4,6 +4,7 @@ import {
   fetchPropuestaNuevaSemana,
   createSemanaPlanificacion,
   createSesionPlanificacion,
+  registrarResultadoSesionPlanificacion,
 } from '../services/planificacionApi'
 import { formatDate } from '../utils/dateFormat'
 
@@ -36,6 +37,10 @@ function Planificacion({ atletaId, onBack }) {
   const [sesionKmPlanificados, setSesionKmPlanificados] = useState('')
   const [sesionError, setSesionError] = useState('')
   const [sesionSuccess, setSesionSuccess] = useState('')
+  const [resultadosEdicion, setResultadosEdicion] = useState({})
+  const [savingResultadoId, setSavingResultadoId] = useState(null)
+  const [resultadoError, setResultadoError] = useState('')
+  const [resultadoSuccess, setResultadoSuccess] = useState('')
 
   async function loadPlanificacion() {
     setLoading(true)
@@ -43,6 +48,7 @@ function Planificacion({ atletaId, onBack }) {
     try {
       const data = await fetchPlanificacion(atletaId)
       setPlanificacionData(data)
+      setResultadosEdicion({})
     } catch (loadError) {
       setError(loadError.message || 'Error al cargar la planificación')
     } finally {
@@ -61,6 +67,7 @@ function Planificacion({ atletaId, onBack }) {
         const data = await fetchPlanificacion(atletaId)
         if (isMounted) {
           setPlanificacionData(data)
+          setResultadosEdicion({})
         }
       } catch (loadError) {
         if (isMounted) {
@@ -199,6 +206,88 @@ function Planificacion({ atletaId, onBack }) {
       setSesionError(createSesionError.message || 'No se pudo crear la sesión')
     } finally {
       setCreatingSesion(false)
+    }
+  }
+
+  function getResultadoStateForSesion(sesion) {
+    const stored = resultadosEdicion[sesion.id]
+    if (stored) {
+      return stored
+    }
+
+    const kmPlan = sesion.kilometros_planificados
+    const kmReal = sesion.kilometros_realizados
+    const marcadoSegunPlan = kmReal !== null && kmPlan !== null && Number(kmReal) === Number(kmPlan)
+
+    return {
+      realizadoSegunPlan: marcadoSegunPlan,
+      kmRealizadosInput: kmReal !== null ? String(kmReal) : '',
+    }
+  }
+
+  function handleResultadoCheckboxChange(sesionId, checked) {
+    setResultadoError('')
+    setResultadoSuccess('')
+    setResultadosEdicion((prev) => {
+      const current = prev[sesionId] || { realizadoSegunPlan: false, kmRealizadosInput: '' }
+      return {
+        ...prev,
+        [sesionId]: {
+          ...current,
+          realizadoSegunPlan: checked,
+        },
+      }
+    })
+  }
+
+  function handleKmRealizadosChange(sesionId, value) {
+    setResultadoError('')
+    setResultadoSuccess('')
+    setResultadosEdicion((prev) => {
+      const current = prev[sesionId] || { realizadoSegunPlan: false, kmRealizadosInput: '' }
+      return {
+        ...prev,
+        [sesionId]: {
+          ...current,
+          kmRealizadosInput: value,
+        },
+      }
+    })
+  }
+
+  async function handleGuardarResultadoSesion(sesion) {
+    if (!semana?.id) {
+      setResultadoError('Debes seleccionar una semana válida')
+      return
+    }
+
+    const state = getResultadoStateForSesion(sesion)
+    const { realizadoSegunPlan, kmRealizadosInput } = state
+
+    if (!realizadoSegunPlan && kmRealizadosInput !== '' && (Number.isNaN(Number(kmRealizadosInput)) || Number(kmRealizadosInput) < 0)) {
+      setResultadoError('Los kilómetros realizados deben ser un número mayor o igual a 0')
+      return
+    }
+
+    const payload = {
+      realizado_segun_planificacion: realizadoSegunPlan,
+    }
+
+    if (!realizadoSegunPlan && kmRealizadosInput !== '') {
+      payload.kilometros_realizados = Number(kmRealizadosInput)
+    }
+
+    try {
+      setSavingResultadoId(sesion.id)
+      setResultadoError('')
+      setResultadoSuccess('')
+      await registrarResultadoSesionPlanificacion(atletaId, semana.id, sesion.id, payload)
+      setResultadoSuccess(`Resultado de sesión ${sesion.orden || sesion.id} guardado`)
+      await loadPlanificacion()
+    } catch (saveError) {
+      setResultadoError(saveError.message || 'No se pudo guardar el resultado de la sesión')
+    } finally {
+      setSavingResultadoId(null)
     }
   }
 
@@ -429,6 +518,9 @@ function Planificacion({ atletaId, onBack }) {
                   <span>Descripción</span>
                   <span>Observaciones</span>
                   <span>Km planificados</span>
+                  <span>Realizado según planificación</span>
+                  <span>Km realizados</span>
+                  <span>Acción</span>
                 </li>
                 {sesiones.map((sesion) => (
                   <li key={sesion.id} className="planificacion__session-item">
@@ -436,10 +528,41 @@ function Planificacion({ atletaId, onBack }) {
                     <span>{sesion.descripcion || '-'}</span>
                     <span>{sesion.observaciones || '-'}</span>
                     <span>{sesion.kilometros_planificados ?? '-'} km</span>
+                    <label className="planificacion__row-checkbox" htmlFor={`sesion-check-${sesion.id}`}>
+                      <input
+                        id={`sesion-check-${sesion.id}`}
+                        type="checkbox"
+                        checked={getResultadoStateForSesion(sesion).realizadoSegunPlan}
+                        onChange={(event) => handleResultadoCheckboxChange(sesion.id, event.target.checked)}
+                        disabled={savingResultadoId === sesion.id}
+                      />
+                      <span>☑</span>
+                    </label>
+                    <input
+                      className="planificacion__row-input"
+                      type="number"
+                      min="0"
+                      step="0.1"
+                      value={getResultadoStateForSesion(sesion).kmRealizadosInput}
+                      onChange={(event) => handleKmRealizadosChange(sesion.id, event.target.value)}
+                      disabled={getResultadoStateForSesion(sesion).realizadoSegunPlan || savingResultadoId === sesion.id}
+                      placeholder={getResultadoStateForSesion(sesion).realizadoSegunPlan ? 'Automático' : 'Manual'}
+                    />
+                    <button
+                      className="planificacion__back"
+                      type="button"
+                      onClick={() => handleGuardarResultadoSesion(sesion)}
+                      disabled={savingResultadoId === sesion.id}
+                    >
+                      {savingResultadoId === sesion.id ? 'Guardando...' : 'Guardar'}
+                    </button>
                   </li>
                 ))}
               </ul>
             )}
+
+            {resultadoError && <p>{resultadoError}</p>}
+            {resultadoSuccess && <p className="planificacion__success">{resultadoSuccess}</p>}
           </article>
         </section>
       )}

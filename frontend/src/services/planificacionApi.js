@@ -174,3 +174,52 @@ export async function createSesionPlanificacion(atletaId, semanaId, payload) {
 
   return data.data
 }
+
+export async function registrarResultadoSesionPlanificacion(atletaId, semanaId, sesionId, payload) {
+  if (!atletaId) {
+    throw new Error('Se requiere atletaId para registrar el resultado de una sesión')
+  }
+
+  if (!semanaId) {
+    throw new Error('Se requiere semanaId para registrar el resultado de una sesión')
+  }
+
+  if (!sesionId) {
+    throw new Error('Se requiere sesionId para registrar el resultado de una sesión')
+  }
+
+  let response
+  try {
+    response = await fetch(`${API_BASE_URL}/planificacion/${atletaId}/semanas/${semanaId}/sesiones/${sesionId}/resultado`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload || {}),
+    })
+  } catch (error) {
+    throw mapNetworkError(error, 'No se pudo registrar el resultado de la sesión')
+  }
+
+  if (!response.ok) {
+    const backendMessage = await getErrorMessageFromResponse(response, 'No se pudo registrar el resultado de la sesión')
+    if (response.status === 400) {
+      throw new Error(backendMessage || 'Los datos de resultado de sesión no son válidos')
+    }
+    if (response.status === 404) {
+      throw new Error(backendMessage || 'No se encontró la sesión seleccionada')
+    }
+    if (response.status === 409) {
+      throw new Error(backendMessage)
+    }
+    throw new Error(backendMessage)
+  }
+
+  const data = await response.json()
+
+  if (!data.success || !data.data?.sesion) {
+    throw new Error('El backend devolvió una respuesta de registro de resultado no válida')
+  }
+
+  return data.data
+}

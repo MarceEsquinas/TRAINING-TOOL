@@ -454,3 +454,85 @@ export async function createSesionSemanaDesdePlanificacionData({
     sesion: insertResult.rows[0],
   };
 }
+
+async function getSesionDeSemanaOrThrow({ semanaId, sesionId }) {
+  if (!sesionId || Number.isNaN(Number(sesionId))) {
+    throw new ServiceError(400, 'El sesionId debe ser un número válido');
+  }
+
+  const result = await query(
+    `SELECT id, semana_id, kilometros_planificados
+     FROM sesion_entrenamiento
+     WHERE id = $1
+     LIMIT 1;`,
+    [sesionId]
+  );
+
+  if (result.rows.length === 0) {
+    throw new ServiceError(404, `No se encontró sesión con id ${sesionId}`);
+  }
+
+  const sesion = result.rows[0];
+  if (Number(sesion.semana_id) !== Number(semanaId)) {
+    throw new ServiceError(409, 'La sesión no pertenece a la semana seleccionada');
+  }
+
+  return sesion;
+}
+
+function parseOptionalNonNegativeNumber(value, fieldName) {
+  if (value === undefined || value === null || String(value).trim() === '') {
+    return null;
+  }
+
+  const parsed = Number(value);
+  if (Number.isNaN(parsed)) {
+    throw new ServiceError(400, `El campo ${fieldName} debe ser numérico`);
+  }
+  if (parsed < 0) {
+    throw new ServiceError(400, `El campo ${fieldName} no puede ser negativo`);
+  }
+
+  return parsed;
+}
+
+export async function registrarResultadoSesionDesdePlanificacionData({
+  atletaId,
+  semanaId,
+  sesionId,
+  realizado_segun_planificacion,
+  kilometros_realizados,
+}) {
+  await getContextoPlanificacionOrThrow(atletaId);
+  await getSemanaDelAtletaOrThrow({ atletaId, semanaId });
+  const sesion = await getSesionDeSemanaOrThrow({ semanaId, sesionId });
+
+  const marcadoSegunPlan = Boolean(realizado_segun_planificacion);
+  const kmPlanificados = sesion.kilometros_planificados !== null
+    ? Number(sesion.kilometros_planificados)
+    : null;
+
+  let kmRealizadosFinal = null;
+  if (marcadoSegunPlan) {
+    if (kmPlanificados === null) {
+      throw new ServiceError(409, 'No se puede marcar según planificación sin kilómetros planificados');
+    }
+    kmRealizadosFinal = kmPlanificados;
+  } else {
+    kmRealizadosFinal = parseOptionalNonNegativeNumber(kilometros_realizados, 'kilometros_realizados');
+  }
+
+  const result = await query(
+    `UPDATE sesion_entrenamiento
+     SET kilometros_realizados = $1,
+         realizada = $2
+     WHERE id = $3
+     RETURNING *;`,
+    [kmRealizadosFinal, kmRealizadosFinal !== null, sesion.id]
+  );
+
+  return {
+    sesion: result.rows[0],
+    regla_aplicada: marcadoSegunPlan ? 'segun_planificacion' : 'registro_manual',
+  };
+}

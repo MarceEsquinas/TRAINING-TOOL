@@ -71,6 +71,11 @@ La pantalla inicial **no** carga históricos. Los históricos se consultan en pa
 9. `fecha_fin` siempre se calcula automáticamente en backend: `fecha_inicio + 6 días`.
 10. Si existe una semana previa del objetivo, la propuesta de inicio se calcula como `día siguiente` al fin de la última semana.
 11. Si el cliente intenta forzar `fecha_fin`, el contrato del caso de uso sigue tomando `fecha_inicio` como único dato de entrada válido.
+12. Para crear sesión (CU-04), el entrenador solo informa `descripcion`, `observaciones` y `kilometros_planificados`.
+13. El `orden` de sesión se calcula automáticamente como el siguiente correlativo de la semana.
+14. Para registrar resultado (CU-05), una sesión siempre mantiene un único valor vigente de `kilometros_realizados`.
+15. El total semanal de km realizados se recalcula automáticamente sumando los valores actuales de las sesiones de la semana.
+16. Regla de no doble conteo: actualizar una sesión sustituye su valor previo; nunca se acumulan valores históricos de la misma sesión.
 
 ---
 
@@ -185,6 +190,53 @@ Crea una semana asociada al objetivo activo del atleta usando solo `fecha_inicio
 }
 ```
 
+### POST /planificacion/:atletaId/semanas/:semanaId/sesiones
+
+Crea una sesión dentro de la semana seleccionada del atleta (CU-04).
+
+**Body de entrada:**
+
+```json
+{
+  "descripcion": "Series 8x1000",
+  "observaciones": "Recuperar 2 minutos entre series",
+  "kilometros_planificados": 12
+}
+```
+
+**Reglas aplicadas automáticamente:**
+
+1. `orden` correlativo por semana.
+2. `created_at` y `updated_at` gestionados por sistema.
+3. No se solicita `creada_por` de forma manual.
+
+### PATCH /planificacion/:atletaId/semanas/:semanaId/sesiones/:sesionId/resultado
+
+Registra el resultado real de una sesión (CU-05).
+
+**Body (modo checkbox marcado):**
+
+```json
+{
+  "realizado_segun_planificacion": true
+}
+```
+
+**Body (modo manual):**
+
+```json
+{
+  "realizado_segun_planificacion": false,
+  "kilometros_realizados": 7
+}
+```
+
+**Comportamiento:**
+
+1. Si `realizado_segun_planificacion = true`, `kilometros_realizados` toma el valor de `kilometros_planificados`.
+2. Si `realizado_segun_planificacion = false`, se usa el valor manual informado (o `null` si no se informa).
+3. La sesión queda con un único valor actual de km realizados; el total semanal se recalcula desde las sesiones actuales.
+
 ---
 
 ## Decisión Técnica Relevante
@@ -210,10 +262,13 @@ Ventajas:
 7. Frontend muestra resumen con fin de semana recalculado visualmente.
 8. Al confirmar, frontend llama `POST /planificacion/:atletaId/semanas` enviando solo `fecha_inicio`.
 9. Backend crea semana con `fecha_fin` calculada y frontend recarga planificación.
+10. Para CU-04, frontend llama `POST /planificacion/:atletaId/semanas/:semanaId/sesiones`.
+11. Para CU-05, cada fila de sesión permite registrar resultado con `PATCH /planificacion/:atletaId/semanas/:semanaId/sesiones/:sesionId/resultado`.
+12. Tras guardar resultado, frontend recarga planificación para mostrar km realizados de semana recalculados.
 
 ---
 
 ## Próximas Extensiones
 
-1. Endpoint para modificar sesiones en bloque.
-2. Endpoints de históricos bajo rutas de negocio separadas.
+1. Incorporar identidad del actor (`creada_por`/`registrado_por`) vía JWT.
+2. Aplicar control de concurrencia optimista con versión de fila si se requiere trazabilidad multiusuario estricta.

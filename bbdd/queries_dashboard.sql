@@ -9,8 +9,8 @@ WHERE o.activo = true;
 
 -- num_feedback_nuevos
 SELECT COUNT(*) AS num_feedback_nuevos
-FROM notificacion_feedback nf
-WHERE nf.leido = false AND nf.tipo = 'feedback_enviado';
+FROM feedback_semanal f
+WHERE f.leido = false;
 
 -- num_planificaciones_pendientes
 -- Contamos atletas con objetivo activo cuya semana actual (o próxima) tiene <=2 días hasta fecha_fin y 0 sesiones planificadas
@@ -38,21 +38,22 @@ FROM objetivo o
 WHERE o.activo = true AND (o.fecha_objetivo - CURRENT_DATE) <= 9;
 
 -- 2) Notificaciones recientes (para listar)
-SELECT nf.id,
-       nf.tipo,
-       nf.atleta_id,
+SELECT f.id,
+       o.atleta_id,
        a.nombre AS atleta_nombre,
-       nf.objetivo_id,
+       o.id AS objetivo_id,
        o.nombre AS objetivo_nombre,
-       nf.semana_id,
-       nf.fecha_envio,
-       nf.resumen,
-       nf.leido
-FROM notificacion_feedback nf
-JOIN atleta a ON a.id = nf.atleta_id
-LEFT JOIN objetivo o ON o.id = nf.objetivo_id
-WHERE nf.tipo = 'feedback_enviado'
-ORDER BY nf.fecha_envio DESC
+       f.semana_id,
+       s.fecha_inicio AS semana_fecha_inicio,
+       s.fecha_fin AS semana_fecha_fin,
+       f.created_at AS fecha_envio,
+       f.leido
+FROM feedback_semanal f
+JOIN semana_entrenamiento s ON s.id = f.semana_id
+JOIN objetivo o ON o.id = s.objetivo_id
+JOIN atleta a ON a.id = o.atleta_id
+WHERE f.leido = false
+ORDER BY f.created_at DESC
 LIMIT 50;
 
 -- 3) Lista de atletas priorizada (paginable)

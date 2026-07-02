@@ -178,31 +178,6 @@ Recupera el resumen completo del dashboard.
 - Cargar dashboard al abrir la app
 - Paginación si hay muchos atletas
 
-### PATCH /notifications/:id/read
-
-Marca una notificación como leída por el entrenador.
-
-**Request:**
-```bash
-PATCH /notifications/42/read
-```
-
-**Respuesta:**
-```json
-{
-  "success": true,
-  "data": {
-    "id": 42,
-    "leido": true,
-    "updated_at": "2026-06-17T19:35:00Z"
-  }
-}
-```
-
-**Casos de uso:**
-- Entrenador revisa un feedback → clic → marca como leído
-- Reduce ruido de notificaciones redundantes
-
 ---
 
 ## 📋 Reglas de Negocio
@@ -210,10 +185,10 @@ PATCH /notifications/42/read
 1. **Selección de atletas**: Solo atletas con `objetivo.activo = true`
 2. **Semana actual**: Rango `semana_entrenamiento.fecha_inicio ≤ hoy ≤ fecha_fin`
    - Si no existe semana actual, usa la próxima semana para evaluar `planificacion_pendiente`
-3. **Feedback reciente**: Trigger automático al insertar `feedback_semanal` → crea notificación
+3. **Feedback reciente**: Cada feedback nuevo empieza como `feedback_semanal.leido = false`
 4. **Estado único por atleta**: Primer match en orden de prioridad; no estados múltiples
 5. **Orden secundario**: Alfabético por `atleta.nombre` cuando tienen igual prioridad
-6. **Notificaciones manuales**: El entrenador decide cuándo marcar como `leido` (no automático)
+6. **Notificaciones automarcadas**: al abrir detalle de feedback, ese feedback pasa a `leido = true`
 7. **Km realizados**: Registro manual por sesión (`sesion_entrenamiento.realizada = true`)
 
 ---
@@ -227,19 +202,10 @@ Nuevas columnas:
 - `fecha_realizada DATE` — cuándo se hizo
 - `registrado_por VARCHAR(100)` — quién registró (atleta/entrenador)
 
-### Tabla: notificacion_feedback (Nueva)
-- PK: `id`
-- FK: `atleta_id`, `objetivo_id`, `semana_id`
-- `tipo VARCHAR(50)` — (ej: 'feedback_enviado')
-- `fecha_envio TIMESTAMP` — cuándo se envió
-- `resumen TEXT` — preview del feedback
-- `leido BOOLEAN DEFAULT false` — marcado manualmente por entrenador
-
-### Trigger: fn_notify_feedback_insert
-- Se ejecuta AFTER INSERT en `feedback_semanal`
-- Crea automáticamente una fila en `notificacion_feedback`
-- Extrae `objetivo_id`, `atleta_id` del feedback enviado
-- Compone resumen con sensaciones + molestias
+### Tabla: feedback_semanal (actualizada)
+- Nueva columna: `leido BOOLEAN DEFAULT false`
+- Se usa como fuente única para notificaciones del dashboard
+- El detalle de feedback marca automáticamente `leido = true`
 
 ---
 
@@ -252,7 +218,7 @@ Nuevas columnas:
 2. **Revisa notificaciones**
    - Ve lista ordenada de eventos recientes
    - Lee feedback de Juan: "buenas sensaciones"
-   - Clic → PATCH /notifications/42/read
+  - Abre detalle en historial → queda marcado como leído automáticamente
    
 3. **Consulta atletas**
    - Ordena por prioridad: 

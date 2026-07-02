@@ -216,6 +216,7 @@ CREATE TABLE feedback_semanal (
     id SERIAL PRIMARY KEY,
     semana_id INTEGER NOT NULL UNIQUE,
     completada BOOLEAN NOT NULL DEFAULT true,
+    leido BOOLEAN NOT NULL DEFAULT false,
     motivo_no_completada VARCHAR(255),
     sensaciones TEXT,
     molestias TEXT,
@@ -236,73 +237,14 @@ CREATE TABLE feedback_semanal (
 COMMENT ON TABLE feedback_semanal IS 'Feedback semanal del atleta (1:1 con semana)';
 COMMENT ON COLUMN feedback_semanal.semana_id IS 'FK a semana_entrenamiento (UNIQUE, cascade delete)';
 COMMENT ON COLUMN feedback_semanal.completada IS 'true si la semana se completó según plan';
+COMMENT ON COLUMN feedback_semanal.leido IS 'Notificación de lectura para entrenador: false al crear, true al abrir detalle';
 COMMENT ON COLUMN feedback_semanal.motivo_no_completada IS 'Motivo de no completarla (enfermedad, lesión, etc)';
 COMMENT ON COLUMN feedback_semanal.sensaciones IS 'Sensaciones generales del atleta durante la semana';
 COMMENT ON COLUMN feedback_semanal.molestias IS 'Molestias físicas reportadas';
 COMMENT ON COLUMN feedback_semanal.ritmo_rodaje IS 'Ritmo medio en rodaje reportado por el atleta';
 
 CREATE INDEX idx_feedback_semana_id ON feedback_semanal(semana_id);
-
--- ====================================================================
--- TABLA: notificacion_feedback
--- Descripción: Eventos de notificación cuando un atleta envía feedback (marca para el entrenador)
--- ====================================================================
-
-CREATE TABLE notificacion_feedback (
-    id SERIAL PRIMARY KEY,
-    tipo VARCHAR(50) NOT NULL DEFAULT 'feedback_enviado',
-    atleta_id INTEGER NOT NULL,
-    objetivo_id INTEGER,
-    semana_id INTEGER,
-    fecha_envio TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    resumen TEXT,
-    leido BOOLEAN NOT NULL DEFAULT false,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT fk_notif_atleta FOREIGN KEY (atleta_id)
-        REFERENCES atleta(id) ON DELETE CASCADE,
-    CONSTRAINT fk_notif_objetivo FOREIGN KEY (objetivo_id)
-        REFERENCES objetivo(id) ON DELETE SET NULL,
-    CONSTRAINT fk_notif_semana FOREIGN KEY (semana_id)
-        REFERENCES semana_entrenamiento(id) ON DELETE SET NULL
-);
-
-COMMENT ON TABLE notificacion_feedback IS 'Notificaciones para entrenador cuando se envía feedback (manual read)';
-COMMENT ON COLUMN notificacion_feedback.tipo IS 'Tipo de evento (ej: feedback_enviado)';
-COMMENT ON COLUMN notificacion_feedback.resumen IS 'Resumen corto del feedback para mostrar en la lista de notificaciones';
-
-CREATE INDEX idx_notif_atleta_id ON notificacion_feedback(atleta_id);
-CREATE INDEX idx_notif_leido ON notificacion_feedback(leido);
-CREATE INDEX idx_notif_fecha_envio ON notificacion_feedback(fecha_envio DESC);
-
--- Función y trigger: crear notificación al insertar feedback_semanal
-CREATE OR REPLACE FUNCTION fn_notify_feedback_insert()
-RETURNS TRIGGER AS $$
-DECLARE
-    v_objetivo_id INTEGER;
-    v_atleta_id INTEGER;
-    v_resumen TEXT;
-BEGIN
-    -- Obtener objetivo y atleta a partir de la semana
-    SELECT objetivo_id INTO v_objetivo_id FROM semana_entrenamiento WHERE id = NEW.semana_id;
-    IF v_objetivo_id IS NOT NULL THEN
-        SELECT atleta_id INTO v_atleta_id FROM objetivo WHERE id = v_objetivo_id;
-    END IF;
-
-    v_resumen := COALESCE(NEW.sensaciones,'') || CASE WHEN NEW.molestias IS NOT NULL THEN ' | Molestias: ' || NEW.molestias ELSE '' END;
-
-    INSERT INTO notificacion_feedback (tipo, atleta_id, objetivo_id, semana_id, fecha_envio, resumen, leido)
-    VALUES ('feedback_enviado', v_atleta_id, v_objetivo_id, NEW.semana_id, CURRENT_TIMESTAMP, v_resumen, false);
-
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER trg_notify_feedback_insert
-    AFTER INSERT ON feedback_semanal
-    FOR EACH ROW
-    EXECUTE FUNCTION fn_notify_feedback_insert();
+CREATE INDEX idx_feedback_leido ON feedback_semanal(leido);
 
 -- ====================================================================
 -- ÍNDICES ADICIONALES PARA OPTIMIZACIÓN

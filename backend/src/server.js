@@ -7,7 +7,6 @@ import sesionEntrenamientoRoute from './routes/crud/sesionEntrenamientoRoute.js'
 import usuarioRoute from './routes/crud/usuarioRoute.js';
 import feedbackRoute from './routes/crud/feedbackRoute.js';
 import dashboardRoute from './routes/negocio/dashboardRoute.js';
-import notificacionRoute from './routes/negocio/notificacionRoute.js';
 import planificacionRoute from './routes/negocio/planificacionRoute.js';
 import historialAtletaRoute from './routes/negocio/historialAtletaRoute.js';
 
@@ -28,7 +27,6 @@ app.use('/', feedbackRoute);
 
 // Rutas de negocio: responden a pantallas/casos de uso de la aplicación.
 app.use('/', dashboardRoute);
-app.use('/', notificacionRoute);
 app.use('/', planificacionRoute);
 app.use('/', historialAtletaRoute);
 

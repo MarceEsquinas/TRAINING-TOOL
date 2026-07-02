@@ -99,7 +99,7 @@ Ver [docs/caso_de_uso_dashboard.md](docs/caso_de_uso_dashboard.md) para descripc
 2. Ve resumen de KPIs (atletas, feedback nuevos, planificaciones pendientes, objetivos próximos)
 3. Revisa notificaciones de feedback enviado
 4. Consulta lista de atletas priorizada por urgencia
-5. Marca notificaciones como leídas → PATCH /notifications/:id/read
+5. Al abrir detalle de feedback en historial, ese feedback pasa a leído automáticamente
 
 ### 2. Planificación del Atleta ✅ Completado (Backend)
 Ver [docs/caso_de_uso_planificacion.md](docs/caso_de_uso_planificacion.md) para descripción completa.
@@ -159,13 +159,14 @@ Obtiene el estado completo del dashboard con resumen, notificaciones y atletas p
   "notifications": [
     {
       "id": 42,
-      "tipo": "feedback_enviado",
       "atleta_id": 5,
       "atleta_nombre": "Juan Pérez",
+      "objetivo_id": 12,
       "objetivo_nombre": "Media maratón 1:45",
       "semana_id": 87,
+      "semana_fecha_inicio": "2026-06-16",
+      "semana_fecha_fin": "2026-06-22",
       "fecha_envio": "2026-06-17T19:30:00Z",
-      "resumen": "Sensaciones buenas | Molestias: ninguna",
       "leido": false
     }
   ],
@@ -184,26 +185,6 @@ Obtiene el estado completo del dashboard con resumen, notificaciones y atletas p
       "razon_estado": "faltan 2 dias y 0 sesiones planificadas"
     }
   ]
-}
-```
-
-#### PATCH /notifications/:id/read
-Marca una notificación como leída por el entrenador.
-
-**Ejemplo**:
-```bash
-PATCH /notifications/42/read
-```
-
-**Respuesta**:
-```json
-{
-  "success": true,
-  "data": {
-    "id": 42,
-    "leido": true,
-    "updated_at": "2026-06-17T19:35:00Z"
-  }
 }
 ```
 
@@ -371,8 +352,8 @@ curl http://localhost:3000/planificacion/1
 - ✓ API REST CRUD para todas las entidades
 - ✓ **Caso de uso: Dashboard del Entrenador**
   - ✓ Cálculo de prioridades por atleta
-  - ✓ Notificaciones de feedback automáticas
-  - ✓ Endpoints GET /dashboard y PATCH /notifications/:id/read
+  - ✓ Notificaciones derivadas de feedback no leído
+  - ✓ Endpoint GET /dashboard
   - ✓ Documentación completa
 - ✓ **Caso de uso: Planificación del Atleta (Backend)**
   - ✓ Endpoint GET /planificacion/:atletaId
@@ -404,7 +385,7 @@ curl http://localhost:3000/planificacion/1
 Estructura actual del backend:
 
 - `src/routes/crud`: rutas CRUD de entidades
-- `src/routes/negocio`: rutas de casos de uso (dashboard, planificación, notificaciones)
+- `src/routes/negocio`: rutas de casos de uso (dashboard, planificación, historial)
 - `src/controllers/crud`: capa HTTP de endpoints CRUD (sin SQL)
 - `src/controllers/negocio`: capa HTTP de endpoints de negocio (sin SQL)
 - `src/services/crud`: validaciones + lógica CRUD + consultas SQL

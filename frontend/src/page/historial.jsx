@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { fetchDetalleFeedback, fetchHistorialAtleta } from '../services/historialApi'
 import { formatDate } from '../utils/dateFormat'
 
@@ -10,7 +10,7 @@ function formatKilometros(value) {
   return `${Number(value)} km`
 }
 
-function Historial({ atletaId, onBack }) {
+function Historial({ atletaId, onBack, initialFeedbackTarget, onConsumeInitialFeedbackTarget }) {
   const [historialData, setHistorialData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -19,6 +19,7 @@ function Historial({ atletaId, onBack }) {
   const [feedbackLoadingPorSemana, setFeedbackLoadingPorSemana] = useState({})
   const [feedbackErrorPorSemana, setFeedbackErrorPorSemana] = useState({})
   const feedbackRequestSeqPorSemana = useRef({})
+  const initialTargetConsumidoRef = useRef('')
 
   useEffect(() => {
     let isMounted = true
@@ -102,7 +103,7 @@ function Historial({ atletaId, onBack }) {
     })
   }, [objetivos, feedbackPorObjetivoSemana])
 
-  async function handleToggleDetalleFeedback(semanaId, feedbackId) {
+  const openFeedbackDetalle = useCallback(async (semanaId, feedbackId) => {
     const semanaIdNumerico = Number(semanaId)
     const feedbackIdNumerico = Number(feedbackId)
 
@@ -114,16 +115,6 @@ function Historial({ atletaId, onBack }) {
       setFeedbackErrorPorSemana((prev) => ({
         ...prev,
         [semanaIdNumerico]: 'No se encontró el identificador del feedback seleccionado',
-      }))
-      return
-    }
-
-    const estaExpandido = Boolean(feedbackExpandidoPorSemana[semanaIdNumerico])
-
-    if (estaExpandido) {
-      setFeedbackExpandidoPorSemana((prev) => ({
-        ...prev,
-        [semanaIdNumerico]: false,
       }))
       return
     }
@@ -179,7 +170,83 @@ function Historial({ atletaId, onBack }) {
         }))
       }
     }
+  }, [feedbackDetallePorSemana])
+
+  const openFeedbackDetalleById = useCallback(async (feedbackId) => {
+    const feedbackIdNumerico = Number(feedbackId)
+    if (!feedbackIdNumerico || Number.isNaN(feedbackIdNumerico)) {
+      return
+    }
+
+    try {
+      const data = await fetchDetalleFeedback(feedbackIdNumerico)
+      const semanaIdNumerico = Number(data?.semana_id)
+
+      if (!semanaIdNumerico || Number.isNaN(semanaIdNumerico)) {
+        throw new Error('El feedback no incluye una semana válida')
+      }
+
+      setFeedbackErrorPorSemana((prev) => ({
+        ...prev,
+        [semanaIdNumerico]: '',
+      }))
+
+      setFeedbackDetallePorSemana((prev) => ({
+        ...prev,
+        [semanaIdNumerico]: data,
+      }))
+
+      setFeedbackExpandidoPorSemana((prev) => ({
+        ...prev,
+        [semanaIdNumerico]: true,
+      }))
+    } catch (detailError) {
+      setError(detailError.message || 'No se pudo abrir el feedback solicitado')
+    }
+  }, [])
+
+  async function handleToggleDetalleFeedback(semanaId, feedbackId) {
+    const semanaIdNumerico = Number(semanaId)
+    if (!semanaIdNumerico || Number.isNaN(semanaIdNumerico)) {
+      return
+    }
+
+    const estaExpandido = Boolean(feedbackExpandidoPorSemana[semanaIdNumerico])
+    if (estaExpandido) {
+      setFeedbackExpandidoPorSemana((prev) => ({
+        ...prev,
+        [semanaIdNumerico]: false,
+      }))
+      return
+    }
+
+    await openFeedbackDetalle(semanaId, feedbackId)
   }
+
+  useEffect(() => {
+    const feedbackId = Number(initialFeedbackTarget?.feedbackId)
+
+    if (!feedbackId) {
+      return
+    }
+
+    const targetKey = `feedback-${feedbackId}`
+    if (initialTargetConsumidoRef.current === targetKey) {
+      return
+    }
+
+    initialTargetConsumidoRef.current = targetKey
+
+    // Flujo directo desde campana: abre por id de feedback y expande su semana automáticamente.
+    openFeedbackDetalleById(feedbackId)
+      .finally(() => {
+        onConsumeInitialFeedbackTarget?.()
+      })
+  }, [
+    initialFeedbackTarget?.feedbackId,
+    openFeedbackDetalleById,
+    onConsumeInitialFeedbackTarget,
+  ])
 
   return (
     <main className="historial">

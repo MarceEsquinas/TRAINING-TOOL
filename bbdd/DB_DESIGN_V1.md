@@ -48,26 +48,21 @@
    - Falta: Validación de peso (no negativo)
    - Cambio: Añadir CHECK constraints
 
+9. **Autenticación del entrenador**:
+   - Problema: `entrenadores` no estaba vinculado al sistema de usuarios autenticados
+   - Solución: Añadir `usuario_id` NULLABLE + UNIQUE en `entrenadores`
+   - Cambio: Relación **usuario 1 -> 0..1 entrenador**, preparada para activarse sin romper datos existentes
+
+10. **Normalización de distancia del objetivo**:
+   - Problema: la distancia podía almacenarse con formatos inconsistentes (`10K`, `10 km`, `10000`, etc.)
+   - Solución: Añadir `distancia_objetivo` al modelo de `objetivo`
+   - Cambio: guardar una etiqueta normalizada o, en caso excepcional, el valor manual de `Otro`
+
 ---
 
 ## 🔄 Diagrama Entidad-Relación (Textual)
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                     entrenadores                             │
-├─────────────────────────────────────────────────────────────┤
-│ PK: id                                                        │
-│ nombre NOT NULL                                               │
-│ correo (UNIQUE NOT NULL)                                      │
-│ password_hash NOT NULL                                        │
-│ created_at, updated_at                                        │
-└────────────────────┬────────────────────────────────────────┘
-                     │ 1
-                     │
-                     │ N
-                     │ entrenador_id
-                     │
-                     ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                         usuario                              │
 ├─────────────────────────────────────────────────────────────┤
@@ -80,7 +75,23 @@
                      │ 1
                      │ (0..1)
                      │ usuario_id
-                     │ (NULLABLE)
+                     │ (NULLABLE, UNIQUE)
+                     │
+                     ▼
+┌─────────────────────────────────────────────────────────────┐
+│                     entrenadores                             │
+├─────────────────────────────────────────────────────────────┤
+│ PK: id                                                        │
+│ FK: usuario_id (NULLABLE, UNIQUE)                            │
+│ nombre NOT NULL                                               │
+│ correo (UNIQUE NOT NULL)                                      │
+│ password_hash NOT NULL                                        │
+│ created_at, updated_at                                        │
+└────────────────────┬────────────────────────────────────────┘
+                     │ 1
+                     │
+                     │ N
+                     │ entrenador_id
                      │
                      ▼
 ┌─────────────────────────────────────────────────────────────┐
@@ -109,6 +120,8 @@
 │ PK: id                                                        │
 │ FK: atleta_id NOT NULL                                      │
 │ nombre NOT NULL                                              │
+│ distancia_objetivo (NULLABLE)                                │
+│ marca_conseguida (NULLABLE)                                  │
 │ fecha_objetivo (DATE) NOT NULL                              │
 │ activo (BOOLEAN) -- Constraint: max 1 activo por atleta     │
 │ created_at, updated_at                                      │
@@ -197,19 +210,26 @@ CREATE INDEX idx_usuario_username ON usuario(username);
 ```sql
 CREATE TABLE entrenadores (
    id SERIAL PRIMARY KEY,
+   usuario_id INTEGER UNIQUE,
    nombre VARCHAR(100) NOT NULL,
    correo VARCHAR(150) UNIQUE NOT NULL,
    password_hash VARCHAR(255) NOT NULL,
    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+   CONSTRAINT fk_entrenadores_usuario FOREIGN KEY (usuario_id)
+      REFERENCES usuario(id) ON DELETE SET NULL
 );
 
 -- Índice para autenticación por correo
 CREATE INDEX idx_entrenador_correo ON entrenadores(correo);
+CREATE INDEX idx_entrenadores_usuario_id ON entrenadores(usuario_id);
 ```
 
 **Decisiones**:
 - Tabla independiente para aislar atletas por entrenador
+- `usuario_id` NULLABLE: permite migración progresiva sin exigir enlace inmediato en entrenadores ya existentes
+- `usuario_id` UNIQUE: un mismo usuario no puede representar a dos entrenadores
 - `correo` único para login del entrenador
 - `password_hash`: contraseña hasheada en la aplicación (bcrypt/argon2)
 
@@ -261,6 +281,8 @@ CREATE TABLE objetivo (
     id SERIAL PRIMARY KEY,
     atleta_id INTEGER NOT NULL,
     nombre VARCHAR(150) NOT NULL,
+   distancia_objetivo VARCHAR(80),
+   marca_conseguida VARCHAR(120),
     fecha_objetivo DATE NOT NULL,
     activo BOOLEAN NOT NULL DEFAULT false,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -272,6 +294,7 @@ CREATE TABLE objetivo (
 
 -- Índice para búsquedas por atleta
 CREATE INDEX idx_objetivo_atleta_id ON objetivo(atleta_id);
+CREATE INDEX idx_objetivo_distancia_objetivo ON objetivo(distancia_objetivo);
 
 -- Constraint: Un solo objetivo activo por atleta
 CREATE UNIQUE INDEX idx_objetivo_activo_por_atleta 
@@ -281,6 +304,9 @@ CREATE UNIQUE INDEX idx_objetivo_activo_por_atleta
 
 **Decisiones**:
 - `ON DELETE CASCADE`: Si se elimina un atleta, se eliminan sus objetivos
+- `distancia_objetivo`: permite normalizar distancias frecuentes (`5K`, `10K`, `Media Maratón`, `Maratón`, `Trail`, `Ultra Trail`)
+- Si en negocio se selecciona `Otro`, se almacena el texto manual en la misma columna para no duplicar atributos en V1
+- `marca_conseguida`: permanece en `NULL` mientras el objetivo está activo; al registrarse la marca, el objetivo se cierra (`activo = false`)
 - Unique partial index para garantizar un solo objetivo activo
 - La aplicación debe manejar transacciones al cambiar objetivos
 
@@ -385,6 +411,8 @@ CREATE INDEX idx_feedback_semana_id ON feedback_semanal(semana_id);
 |-------|-------------|------|----------|
 | `usuario` | username UNIQUE | UNIQUE | Sin logins duplicados |
 | `entrenadores` | correo UNIQUE | UNIQUE | Sin correos duplicados de entrenador |
+| `entrenadores` | usuario_id UNIQUE | UNIQUE | Un usuario no puede vincularse a dos entrenadores |
+| `entrenadores` | usuario_id → usuario.id | FK | Vincular autenticación del entrenador sin romper datos existentes |
 | `atleta` | usuario_id UNIQUE | UNIQUE | 1:1 con usuario |
 | `atleta` | entrenador_id → entrenadores.id | FK | Asignación de planificación por entrenador |
 | `atleta` | peso > 0 | CHECK | Dato válido |
@@ -402,11 +430,13 @@ CREATE INDEX idx_feedback_semana_id ON feedback_semanal(semana_id);
 -- Búsquedas y logins
 CREATE INDEX idx_usuario_username ON usuario(username);
 CREATE INDEX idx_entrenador_correo ON entrenadores(correo);
+CREATE INDEX idx_entrenadores_usuario_id ON entrenadores(usuario_id);
 
 -- Joins y filtros
 CREATE INDEX idx_atleta_usuario_id ON atleta(usuario_id);
 CREATE INDEX idx_atleta_entrenador_id ON atleta(entrenador_id);
 CREATE INDEX idx_objetivo_atleta_id ON objetivo(atleta_id);
+CREATE INDEX idx_objetivo_distancia_objetivo ON objetivo(distancia_objetivo);
 CREATE INDEX idx_semana_objetivo_id ON semana_entrenamiento(objetivo_id);
 CREATE INDEX idx_sesion_semana_id ON sesion_entrenamiento(semana_id);
 CREATE INDEX idx_feedback_semana_id ON feedback_semanal(semana_id);
@@ -432,6 +462,7 @@ CREATE UNIQUE INDEX idx_objetivo_activo_por_atleta
 ### 2. **ON DELETE CASCADE vs SET NULL**
    - Atleta → Objetivo: CASCADE (un objetivo sin atleta no tiene sentido)
    - Usuario → Atleta: SET NULL (un admin puede existir sin atleta)
+   - Usuario → Entrenadores: SET NULL (se conserva el entrenador aunque el usuario autenticado se desvincule)
    - Entrenador → Atleta: SET NULL (se conserva el histórico del atleta si el entrenador se desactiva)
    - Objetivo → Semana: CASCADE (semanas huérfanas no se usan)
 
@@ -448,6 +479,11 @@ CREATE UNIQUE INDEX idx_objetivo_activo_por_atleta
 ### 5. **Timestamps (created_at, updated_at)**
    - Auditoría mínima sin tabla de logs
    - created_at con DEFAULT CURRENT_TIMESTAMP
+
+### 6. **Normalización de distancia del objetivo**
+   - La columna `distancia_objetivo` evita inconsistencias de escritura para filtros y estadísticas futuras
+   - El backend acepta un catálogo cerrado para las distancias frecuentes
+   - El caso `Otro` se resuelve guardando el texto manual en la misma columna, manteniendo V1 simple y sin duplicar atributos en base de datos
    - updated_at requiere trigger o manejo en app
 
 ### 6. **NUMERIC vs FLOAT**

@@ -203,6 +203,8 @@ Obtiene la información necesaria para planificar el entrenamiento de un atleta 
     "objetivo": {
       "id": 12,
       "nombre": "Media maratón 1:45",
+      "distancia_objetivo": "Media Maratón",
+      "marca_conseguida": null,
       "fecha_objetivo": "2026-07-20",
       "dias_hasta_objetivo": 31
     },
@@ -233,6 +235,18 @@ Crea una nueva semana asociada a la planificación activa del atleta.
 ```
 
 **Regla**: `fecha_fin` no se envía desde frontend; se calcula en backend como `fecha_inicio + 6 días`.
+
+#### PATCH /planificacion/:atletaId/objetivos/:objetivoId/marca
+Registra la marca conseguida del objetivo cuando `dias_hasta_objetivo <= 0`.
+
+**Body**:
+```json
+{
+  "marca_conseguida": "1:18:42"
+}
+```
+
+**Regla de negocio**: al registrar una marca válida, el backend cambia automáticamente `objetivo.activo = false`.
 
 #### GET /historial/atletas/:atletaId
 Obtiene el historial completo de un atleta: objetivos, planificación histórica y feedback resumido.

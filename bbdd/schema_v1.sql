@@ -102,6 +102,8 @@ CREATE TABLE objetivo (
     id SERIAL PRIMARY KEY,
     atleta_id INTEGER NOT NULL,
     nombre VARCHAR(150) NOT NULL,
+    distancia_objetivo VARCHAR(80),
+    marca_conseguida VARCHAR(120),
     fecha_objetivo DATE NOT NULL,
     activo BOOLEAN NOT NULL DEFAULT false,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -114,10 +116,13 @@ CREATE TABLE objetivo (
 COMMENT ON TABLE objetivo IS 'Objetivos de entrenamiento del atleta';
 COMMENT ON COLUMN objetivo.atleta_id IS 'FK a atleta (cascade delete)';
 COMMENT ON COLUMN objetivo.nombre IS 'Nombre del objetivo (ej: "Media maratón en 1:45")';
+COMMENT ON COLUMN objetivo.distancia_objetivo IS 'Distancia normalizada del objetivo; para "Otro" se guarda el texto manual introducido';
+COMMENT ON COLUMN objetivo.marca_conseguida IS 'Marca final conseguida por el atleta; NULL mientras el objetivo siga activo';
 COMMENT ON COLUMN objetivo.fecha_objetivo IS 'Fecha objetivo del evento/meta';
 COMMENT ON COLUMN objetivo.activo IS 'Solo un objetivo activo por atleta';
 
 CREATE INDEX idx_objetivo_atleta_id ON objetivo(atleta_id);
+CREATE INDEX idx_objetivo_distancia_objetivo ON objetivo(distancia_objetivo);
 
 -- Constraint: Un solo objetivo activo por atleta
 CREATE UNIQUE INDEX idx_objetivo_activo_por_atleta 
@@ -330,6 +335,14 @@ CREATE TRIGGER trg_feedback_updated_at
 INSERT INTO usuario (username, password_hash, rol) 
 VALUES ('admin', '$2b$12$...', 'ADMIN');
 
+-- Usuario entrenador
+INSERT INTO usuario (username, password_hash, rol)
+VALUES ('coach.pepe', '$2b$12$...', 'ADMIN');
+
+-- Entrenador
+INSERT INTO entrenadores (usuario_id, nombre, correo, password_hash)
+VALUES (2, 'Pepito García', 'coach.pepe@club.test', '$2b$12$...');
+
 -- Usuario atleta
 INSERT INTO usuario (username, password_hash, rol)
 VALUES ('juan', '$2b$12$...', 'ATLETA');
@@ -337,7 +350,7 @@ VALUES ('juan', '$2b$12$...', 'ATLETA');
 -- Atleta
 INSERT INTO atleta (usuario_id, nombre, sexo, peso, dias_disponibles, km_medios_ultimos_2_meses)
 VALUES (
-    2,
+    3,
     'Juan Pérez',
     'M',
     75.50,
@@ -346,8 +359,8 @@ VALUES (
 );
 
 -- Objetivo
-INSERT INTO objetivo (atleta_id, nombre, fecha_objetivo, activo)
-VALUES (1, 'Media maratón en 1:45', '2026-09-15', true);
+INSERT INTO objetivo (atleta_id, nombre, distancia_objetivo, fecha_objetivo, activo)
+VALUES (1, 'Media maratón en 1:45', 'Media Maratón', '2026-09-15', true);
 
 -- Semana
 INSERT INTO semana_entrenamiento (objetivo_id, fecha_inicio, fecha_fin)

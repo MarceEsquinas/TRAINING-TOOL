@@ -31,7 +31,7 @@ export async function getAtletaById(atletaId) {
 // Servicio para obtener un objetivo por su id.
 export async function getObjetivoById(objetivoId) {
   return query(
-    `SELECT o.id, o.atleta_id, o.nombre, o.fecha_objetivo, o.activo
+    `SELECT o.id, o.atleta_id, o.nombre, o.distancia_objetivo, o.fecha_objetivo, o.activo
      FROM objetivo o
      WHERE o.id = $1;`,
     [objetivoId]
@@ -44,7 +44,8 @@ export async function getHistorialObjetivosByAtletaId(atletaId) {
     `SELECT
        o.id AS objetivo_id,
        o.nombre AS nombre_objetivo,
-       NULL::NUMERIC AS distancia,
+       o.distancia_objetivo,
+       o.marca_conseguida,
        o.fecha_objetivo,
        CASE
          WHEN o.activo = true THEN 'activo'
@@ -193,7 +194,8 @@ export async function getHistorialCompletoAtletaData(atletaId) {
       return {
         id: objetivo.objetivo_id,
         nombre: objetivo.nombre_objetivo,
-        distancia: objetivo.distancia !== null ? Number(objetivo.distancia) : null,
+        distancia_objetivo: objetivo.distancia_objetivo || null,
+        marca_conseguida: objetivo.marca_conseguida || null,
         fecha_objetivo: objetivo.fecha_objetivo,
         estado: objetivo.estado,
         planificacion: planificacionResult.rows.map((semana) => ({
@@ -241,7 +243,8 @@ export async function getHistorialObjetivosAtletaData(atletaId) {
     data: result.rows.map((objetivo) => ({
       id: objetivo.objetivo_id,
       nombre: objetivo.nombre_objetivo,
-      distancia: objetivo.distancia !== null ? Number(objetivo.distancia) : null,
+      distancia_objetivo: objetivo.distancia_objetivo || null,
+      marca_conseguida: objetivo.marca_conseguida || null,
       fecha_objetivo: objetivo.fecha_objetivo,
       estado: objetivo.estado,
     })),

@@ -1,6 +1,58 @@
 import { query } from '../../config/db.js';
 import { ServiceError } from '../serviceError.js';
 
+const DISTANCIAS_OBJETIVO_PREDEFINIDAS = [
+  '5K',
+  '10K',
+  'Media Maratón',
+  'Maratón',
+  'Trail',
+  'Ultra Trail',
+];
+
+function normalizarDistanciaObjetivo(payload, { required = false } = {}) {
+  const distanciaObjetivo = payload?.distancia_objetivo;
+  const distanciaObjetivoManual = payload?.distancia_objetivo_manual;
+
+  if (distanciaObjetivo === undefined && distanciaObjetivoManual === undefined) {
+    if (required) {
+      throw new ServiceError(400, 'La distancia_objetivo es requerida');
+    }
+    return undefined;
+  }
+
+  const valorPrincipal = distanciaObjetivo === undefined || distanciaObjetivo === null
+    ? ''
+    : String(distanciaObjetivo).trim();
+  const valorManual = distanciaObjetivoManual === undefined || distanciaObjetivoManual === null
+    ? ''
+    : String(distanciaObjetivoManual).trim();
+
+  if (valorPrincipal === '' && valorManual === '') {
+    if (required) {
+      throw new ServiceError(400, 'La distancia_objetivo es requerida');
+    }
+    return null;
+  }
+
+  if (DISTANCIAS_OBJETIVO_PREDEFINIDAS.includes(valorPrincipal)) {
+    return valorPrincipal;
+  }
+
+  if (valorPrincipal.toLowerCase() === 'otro') {
+    if (valorManual === '') {
+      throw new ServiceError(400, 'La distancia_objetivo_manual es requerida cuando distancia_objetivo es Otro');
+    }
+    return valorManual;
+  }
+
+  if (valorManual !== '') {
+    return valorManual;
+  }
+
+  return valorPrincipal;
+}
+
 export async function listObjetivos() {
   const result = await query('SELECT * FROM objetivo ORDER BY id');
   return result.rows;
@@ -13,6 +65,7 @@ export async function findObjetivoById(id) {
 
 export async function createObjetivo(payload) {
   const { nombre, atleta_id, fecha_objetivo, activo } = payload;
+  const distanciaObjetivo = normalizarDistanciaObjetivo(payload, { required: true });
 
   if (!nombre || String(nombre).trim() === '') {
     throw new ServiceError(400, 'El nombre del objetivo es requerido');
@@ -28,18 +81,25 @@ export async function createObjetivo(payload) {
 
   const sql = `
     INSERT INTO objetivo
-    (nombre, atleta_id, fecha_objetivo, activo)
-    VALUES ($1, $2, $3, $4)
+    (nombre, atleta_id, distancia_objetivo, fecha_objetivo, activo)
+    VALUES ($1, $2, $3, $4, $5)
     RETURNING *;
   `;
 
-  const params = [String(nombre).trim(), atleta_id, fecha_objetivo, activo === undefined ? false : activo];
+  const params = [
+    String(nombre).trim(),
+    atleta_id,
+    distanciaObjetivo,
+    fecha_objetivo,
+    activo === undefined ? false : activo,
+  ];
   const result = await query(sql, params);
   return result.rows[0];
 }
 
 export async function updateObjetivo(id, payload) {
   const { nombre, atleta_id, fecha_objetivo, activo } = payload;
+  const distanciaObjetivo = normalizarDistanciaObjetivo(payload);
 
   if (nombre !== undefined && String(nombre).trim() === '') {
     throw new ServiceError(400, 'El nombre del objetivo no puede estar vacío');
@@ -56,6 +116,10 @@ export async function updateObjetivo(id, payload) {
   if (atleta_id !== undefined) {
     fields.push(`atleta_id = $${idx++}`);
     params.push(atleta_id);
+  }
+  if (distanciaObjetivo !== undefined) {
+    fields.push(`distancia_objetivo = $${idx++}`);
+    params.push(distanciaObjetivo);
   }
   if (fecha_objetivo !== undefined) {
     fields.push(`fecha_objetivo = $${idx++}`);

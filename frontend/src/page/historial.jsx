@@ -279,6 +279,9 @@ function Historial({ atletaId, onBack, initialFeedbackTarget, onConsumeInitialFe
                   <p className="historial__objective-dates">
                     {formatDate(objetivo.fechaInicioVisual)} - {formatDate(objetivo.fechaFinVisual)}
                   </p>
+                  {objetivo.marca_conseguida && (
+                    <p className="historial__objective-dates">Marca conseguida: {objetivo.marca_conseguida}</p>
+                  )}
                 </div>
 
                 <div className="historial__objective-meta">

@@ -145,11 +145,14 @@ km_realizados_semana = SUM(sesion_entrenamiento.kilometros_realizados)
 ### Días hasta Objetivo
 
 ```
-dias_hasta_objetivo = fecha_objetivo - hoy
+dias_hasta_objetivo = fecha_objetivo - fecha_actual_negocio
 ```
 
+Donde `fecha_actual_negocio` se calcula con zona `Europe/Madrid` para evitar desfases por zona horaria.
+
 - Positivo: días restantes
-- Negativo: competición ya pasó (rareza, pero existe)
+- Cero: día del objetivo (la planificación habilita registro de marca)
+- Negativo: competición ya pasó y el registro de marca sigue disponible hasta guardarse
 - Uso: priorizar adaptación en últimas semanas
 
 ---

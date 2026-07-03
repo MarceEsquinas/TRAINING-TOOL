@@ -223,3 +223,48 @@ export async function registrarResultadoSesionPlanificacion(atletaId, semanaId, 
 
   return data.data
 }
+
+export async function registrarMarcaObjetivoPlanificacion(atletaId, objetivoId, payload) {
+  if (!atletaId) {
+    throw new Error('Se requiere atletaId para registrar la marca del objetivo')
+  }
+
+  if (!objetivoId) {
+    throw new Error('Se requiere objetivoId para registrar la marca del objetivo')
+  }
+
+  let response
+  try {
+    response = await fetch(`${API_BASE_URL}/planificacion/${atletaId}/objetivos/${objetivoId}/marca`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload || {}),
+    })
+  } catch (error) {
+    throw mapNetworkError(error, 'No se pudo registrar la marca del objetivo')
+  }
+
+  if (!response.ok) {
+    const backendMessage = await getErrorMessageFromResponse(response, 'No se pudo registrar la marca del objetivo')
+    if (response.status === 400) {
+      throw new Error(backendMessage || 'La marca indicada no es válida')
+    }
+    if (response.status === 404) {
+      throw new Error(backendMessage || 'No se encontró el objetivo seleccionado')
+    }
+    if (response.status === 409) {
+      throw new Error(backendMessage)
+    }
+    throw new Error(backendMessage)
+  }
+
+  const data = await response.json()
+
+  if (!data.success || !data.data?.objetivo) {
+    throw new Error('El backend devolvió una respuesta de marca de objetivo no válida')
+  }
+
+  return data.data
+}

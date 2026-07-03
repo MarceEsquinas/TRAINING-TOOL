@@ -1,5 +1,7 @@
 import { query } from '../../config/db.js';
 
+const BUSINESS_TZ = 'Europe/Madrid';
+
 async function hasFeedbackLeidoColumn() {
   const result = await query(
     `SELECT 1
@@ -51,7 +53,10 @@ export async function getDashboardData({ limit, offset }) {
     ) t;`
   );
   const numObjetivosProximosResult = await query(
-    `SELECT COUNT(*) AS num_objetivos_proximos FROM objetivo o WHERE o.activo = true AND (o.fecha_objetivo - CURRENT_DATE) <= 9;`
+    `SELECT COUNT(*) AS num_objetivos_proximos
+     FROM objetivo o
+     WHERE o.activo = true
+       AND (o.fecha_objetivo - (CURRENT_TIMESTAMP AT TIME ZONE '${BUSINESS_TZ}')::date) <= 9;`
   );
 
   const summary = {
@@ -126,15 +131,16 @@ export async function getDashboardData({ limit, offset }) {
        FROM sesion_entrenamiento ses
        GROUP BY ses.semana_id
      )
-     SELECT a.atleta_id, a.atleta_nombre, a.objetivo_id, a.objetivo_nombre, (a.fecha_objetivo - CURRENT_DATE) AS dias_hasta_objetivo, s.id AS semana_id, s.fecha_inicio AS semana_fecha_inicio, s.fecha_fin AS semana_fecha_fin, COALESCE(sa.km_planificados,0) AS km_planificados_semana, COALESCE(sa.km_realizados,0) AS km_realizados_semana,
+     SELECT a.atleta_id, a.atleta_nombre, a.objetivo_id, a.objetivo_nombre, a.fecha_objetivo, (a.fecha_objetivo - (CURRENT_TIMESTAMP AT TIME ZONE '${BUSINESS_TZ}')::date) AS dias_hasta_objetivo, s.id AS semana_id, s.fecha_inicio AS semana_fecha_inicio, s.fecha_fin AS semana_fecha_fin, COALESCE(sa.km_planificados,0) AS km_planificados_semana, COALESCE(sa.km_realizados,0) AS km_realizados_semana,
        CASE
          WHEN s.id IS NOT NULL AND (s.fecha_fin - CURRENT_DATE) <= 2 AND COALESCE(sa.sesiones_planificadas,0) = 0 THEN 'planificacion_pendiente'
-         WHEN (a.fecha_objetivo - CURRENT_DATE) <= 9 THEN 'objetivo_proximo'
+         WHEN (a.fecha_objetivo - (CURRENT_TIMESTAMP AT TIME ZONE '${BUSINESS_TZ}')::date) <= 9 THEN 'objetivo_proximo'
          ELSE 'ok'
        END AS estado_prioritario,
        CASE
          WHEN s.id IS NOT NULL AND (s.fecha_fin - CURRENT_DATE) <= 2 AND COALESCE(sa.sesiones_planificadas,0) = 0 THEN CONCAT('faltan ', (s.fecha_fin - CURRENT_DATE), ' dias y ', COALESCE(sa.sesiones_planificadas,0), ' sesiones planificadas')
-         WHEN (a.fecha_objetivo - CURRENT_DATE) <= 9 THEN CONCAT('objetivo en ', (a.fecha_objetivo - CURRENT_DATE), ' dias')
+         WHEN (a.fecha_objetivo - (CURRENT_TIMESTAMP AT TIME ZONE '${BUSINESS_TZ}')::date) <= 0 THEN 'Objetivo alcanzado: registrar marca conseguida'
+         WHEN (a.fecha_objetivo - (CURRENT_TIMESTAMP AT TIME ZONE '${BUSINESS_TZ}')::date) <= 9 THEN CONCAT('objetivo en ', (a.fecha_objetivo - (CURRENT_TIMESTAMP AT TIME ZONE '${BUSINESS_TZ}')::date), ' dias')
          ELSE 'todo correcto'
        END AS razon_estado
      FROM semana_seleccionada ss
@@ -144,7 +150,7 @@ export async function getDashboardData({ limit, offset }) {
      ORDER BY
        CASE
          WHEN (s.id IS NOT NULL AND (s.fecha_fin - CURRENT_DATE) <= 2 AND COALESCE(sa.sesiones_planificadas,0) = 0) THEN 1
-         WHEN (a.fecha_objetivo - CURRENT_DATE) <= 9 THEN 2
+         WHEN (a.fecha_objetivo - (CURRENT_TIMESTAMP AT TIME ZONE '${BUSINESS_TZ}')::date) <= 9 THEN 2
          ELSE 3
        END,
        a.atleta_nombre ASC

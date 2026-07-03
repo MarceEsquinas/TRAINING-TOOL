@@ -5,6 +5,7 @@ import {
   createSemanaPlanificacion,
   createSesionPlanificacion,
   registrarResultadoSesionPlanificacion,
+  registrarMarcaObjetivoPlanificacion,
 } from '../services/planificacionApi'
 import { formatDate } from '../utils/dateFormat'
 
@@ -41,6 +42,12 @@ function Planificacion({ atletaId, onBack }) {
   const [savingResultadoId, setSavingResultadoId] = useState(null)
   const [resultadoError, setResultadoError] = useState('')
   const [resultadoSuccess, setResultadoSuccess] = useState('')
+  const [marcaConseguidaInput, setMarcaConseguidaInput] = useState('')
+  const [marcaError, setMarcaError] = useState('')
+  const [marcaSuccess, setMarcaSuccess] = useState('')
+  const [registrandoMarca, setRegistrandoMarca] = useState(false)
+  const [marcaRegistradaPendienteConfirmacion, setMarcaRegistradaPendienteConfirmacion] = useState(false)
+  const [marcaFinalizadaInfo, setMarcaFinalizadaInfo] = useState('')
 
   async function loadPlanificacion() {
     setLoading(true)
@@ -49,6 +56,7 @@ function Planificacion({ atletaId, onBack }) {
       const data = await fetchPlanificacion(atletaId)
       setPlanificacionData(data)
       setResultadosEdicion({})
+      setMarcaConseguidaInput(data?.objetivo?.marca_conseguida || '')
     } catch (loadError) {
       setError(loadError.message || 'Error al cargar la planificación')
     } finally {
@@ -68,6 +76,11 @@ function Planificacion({ atletaId, onBack }) {
         if (isMounted) {
           setPlanificacionData(data)
           setResultadosEdicion({})
+          setMarcaConseguidaInput(data?.objetivo?.marca_conseguida || '')
+          setMarcaRegistradaPendienteConfirmacion(false)
+          setMarcaError('')
+          setMarcaSuccess('')
+          setMarcaFinalizadaInfo('')
         }
       } catch (loadError) {
         if (isMounted) {
@@ -92,6 +105,21 @@ function Planificacion({ atletaId, onBack }) {
   const objetivo = useMemo(() => planificacionData?.objetivo || null, [planificacionData])
   const semana = useMemo(() => planificacionData?.semana || null, [planificacionData])
   const sesiones = useMemo(() => planificacionData?.sesiones || [], [planificacionData])
+  const objetivoEnDiaDeCompeticion = useMemo(() => {
+    return Number(objetivo?.dias_hasta_objetivo) <= 0
+  }, [objetivo?.dias_hasta_objetivo])
+
+  const objetivoPendienteDeMarca = useMemo(() => {
+    if (!objetivo || !objetivoEnDiaDeCompeticion) {
+      return false
+    }
+
+    if (marcaRegistradaPendienteConfirmacion) {
+      return true
+    }
+
+    return !objetivo?.marca_conseguida
+  }, [objetivo, objetivoEnDiaDeCompeticion, marcaRegistradaPendienteConfirmacion])
 
   async function handleOpenCreateWeek() {
     try {
@@ -291,6 +319,65 @@ function Planificacion({ atletaId, onBack }) {
     }
   }
 
+  async function handleRegistrarMarcaObjetivo() {
+    if (!objetivo?.id) {
+      setMarcaError('No hay objetivo activo para registrar la marca')
+      return
+    }
+
+    const marcaNormalizada = marcaConseguidaInput.trim()
+    if (!marcaNormalizada) {
+      setMarcaError('La marca conseguida es obligatoria')
+      return
+    }
+
+    try {
+      setRegistrandoMarca(true)
+      setMarcaError('')
+      setMarcaSuccess('')
+      setMarcaFinalizadaInfo('')
+
+      const data = await registrarMarcaObjetivoPlanificacion(atletaId, objetivo.id, {
+        marca_conseguida: marcaNormalizada,
+      })
+
+      setPlanificacionData((prev) => {
+        if (!prev?.objetivo) {
+          return prev
+        }
+
+        return {
+          ...prev,
+          objetivo: {
+            ...prev.objetivo,
+            ...data.objetivo,
+            dias_hasta_objetivo: prev.objetivo.dias_hasta_objetivo,
+          },
+        }
+      })
+
+      setMarcaConseguidaInput(data?.objetivo?.marca_conseguida || marcaNormalizada)
+      setMarcaSuccess('Marca registrada correctamente')
+      setMarcaRegistradaPendienteConfirmacion(true)
+    } catch (saveError) {
+      setMarcaError(saveError.message || 'No se pudo registrar la marca del objetivo')
+    } finally {
+      setRegistrandoMarca(false)
+    }
+  }
+
+  async function handleConfirmarMarca() {
+    try {
+      await loadPlanificacion()
+      setMarcaRegistradaPendienteConfirmacion(false)
+      setMarcaSuccess('')
+      setMarcaError('')
+      setMarcaFinalizadaInfo('La marca se ha registrado correctamente. Puedes consultarla en el historial del atleta.')
+    } catch (confirmError) {
+      setMarcaError(confirmError.message || 'No se pudo confirmar el registro de la marca')
+    }
+  }
+
   const fuenteSugerenciaLabel = useMemo(() => {
     if (propuestaFuente === 'dia_siguiente_ultima_semana') {
       return 'Sugerencia basada en la última semana creada'
@@ -385,7 +472,7 @@ function Planificacion({ atletaId, onBack }) {
             </article>
           )}
 
-          <article className="planificacion__card">
+          <article className={`planificacion__card${objetivoEnDiaDeCompeticion ? ' planificacion__card--objetivo-vencido' : ''}`}>
             <h3>Contexto actual</h3>
             <div className="planificacion__grid">
               <div>
@@ -404,7 +491,65 @@ function Planificacion({ atletaId, onBack }) {
                 <span className="field-label">Días restantes</span>
                 <strong>{objetivo?.dias_hasta_objetivo ?? '-'}</strong>
               </div>
+              <div>
+                <span className="field-label">Marca conseguida</span>
+                <strong>{objetivo?.marca_conseguida || '-'}</strong>
+              </div>
             </div>
+
+            {marcaFinalizadaInfo && <p className="planificacion__success">{marcaFinalizadaInfo}</p>}
+
+            {objetivoPendienteDeMarca && (
+              <div className="planificacion__session-create" aria-label="Registro de marca conseguida">
+                {!marcaRegistradaPendienteConfirmacion && (
+                  <>
+                    <label className="planificacion__field" htmlFor="marca-conseguida-input">
+                      <span className="field-label">Marca conseguida</span>
+                      <input
+                        id="marca-conseguida-input"
+                        type="text"
+                        value={marcaConseguidaInput}
+                        onChange={(event) => {
+                          setMarcaConseguidaInput(event.target.value)
+                          setMarcaError('')
+                          setMarcaSuccess('')
+                        }}
+                        placeholder="Ej: 36:25, 1:18:42, 5h 12m"
+                      />
+                    </label>
+
+                    {marcaError && <p>{marcaError}</p>}
+                    {marcaSuccess && <p className="planificacion__success">{marcaSuccess}</p>}
+
+                    <div className="planificacion__actions">
+                      <button
+                        className="planificacion__back"
+                        type="button"
+                        onClick={handleRegistrarMarcaObjetivo}
+                        disabled={registrandoMarca}
+                      >
+                        {registrandoMarca ? 'Registrando marca...' : 'Registrar marca'}
+                      </button>
+                    </div>
+                  </>
+                )}
+
+                {marcaRegistradaPendienteConfirmacion && (
+                  <>
+                    <p className="planificacion__success">Marca registrada correctamente. Confirma para finalizar el objetivo.</p>
+                    <div className="planificacion__actions">
+                      <button
+                        className="planificacion__back"
+                        type="button"
+                        onClick={handleConfirmarMarca}
+                      >
+                        Confirmar registro
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
           </article>
 
           <article className="planificacion__card">

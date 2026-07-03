@@ -344,6 +344,11 @@
   box-shadow: 0 1px 0 rgba(0, 0, 0, 0.02);
 }
 
+.athlete-card--objetivo-vencido {
+  background: linear-gradient(180deg, #e9f4ff 0%, #d8ebff 100%);
+  border-color: #6aa0d8;
+}
+
 .athlete-card__head {
   display: flex;
   justify-content: space-between;
@@ -538,6 +543,11 @@
   border: 1px solid #e3dcc6;
   border-radius: 16px;
   padding: 20px;
+}
+
+.planificacion__card--objetivo-vencido {
+  background: linear-gradient(180deg, #e9f4ff 0%, #d8ebff 100%);
+  border-color: #6aa0d8;
 }
 
 .planificacion__card h3 {

@@ -1,6 +1,9 @@
 import { query } from '../../config/db.js';
 import { ServiceError } from '../serviceError.js';
 
+const BUSINESS_TZ = 'Europe/Madrid';
+const SQL_DIAS_HASTA_OBJETIVO = `(o.fecha_objetivo - (CURRENT_TIMESTAMP AT TIME ZONE '${BUSINESS_TZ}')::date)`;
+
 function toIsoDateUTC(date) {
   return date.toISOString().slice(0, 10);
 }
@@ -59,7 +62,7 @@ async function getContextoPlanificacionOrThrow(atletaId) {
   }
 
   const objetivoResult = await query(
-    `SELECT id, nombre, fecha_objetivo
+    `SELECT id, nombre, distancia_objetivo, marca_conseguida, fecha_objetivo
      FROM objetivo
      WHERE atleta_id = $1 AND activo = true
      ORDER BY id DESC
@@ -89,8 +92,10 @@ export async function getPlanificacionAtletaData(atletaId) {
          a.nombre AS atleta_nombre,
          o.id AS objetivo_id,
          o.nombre AS objetivo_nombre,
+         o.distancia_objetivo,
+         o.marca_conseguida,
          o.fecha_objetivo,
-         (o.fecha_objetivo - CURRENT_DATE) AS dias_hasta_objetivo
+         ${SQL_DIAS_HASTA_OBJETIVO} AS dias_hasta_objetivo
        FROM atleta a
        LEFT JOIN objetivo o ON a.id = o.atleta_id AND o.activo = true
        WHERE a.id = $1
@@ -101,6 +106,8 @@ export async function getPlanificacionAtletaData(atletaId) {
          ao.atleta_nombre,
          ao.objetivo_id,
          ao.objetivo_nombre,
+         ao.distancia_objetivo,
+         ao.marca_conseguida,
          ao.fecha_objetivo,
          ao.dias_hasta_objetivo,
          COALESCE(
@@ -136,6 +143,8 @@ export async function getPlanificacionAtletaData(atletaId) {
        ss.atleta_nombre,
        ss.objetivo_id,
        ss.objetivo_nombre,
+      ss.distancia_objetivo,
+      ss.marca_conseguida,
        ss.fecha_objetivo,
        ss.dias_hasta_objetivo,
        ss.semana_id,
@@ -192,6 +201,8 @@ export async function getPlanificacionAtletaData(atletaId) {
       ? {
           id: rowPrincipal.objetivo_id,
           nombre: rowPrincipal.objetivo_nombre,
+          distancia_objetivo: rowPrincipal.distancia_objetivo || null,
+          marca_conseguida: rowPrincipal.marca_conseguida || null,
           fecha_objetivo: rowPrincipal.fecha_objetivo,
           dias_hasta_objetivo: Number(rowPrincipal.dias_hasta_objetivo),
         }
@@ -243,6 +254,8 @@ export async function getPropuestaNuevaSemanaData(atletaId) {
     objetivo: {
       id: objetivo.id,
       nombre: objetivo.nombre,
+      distancia_objetivo: objetivo.distancia_objetivo || null,
+      marca_conseguida: objetivo.marca_conseguida || null,
       fecha_objetivo: objetivo.fecha_objetivo,
     },
     propuesta: {
@@ -287,6 +300,7 @@ export async function createSemanaDesdePlanificacionData({ atletaId, fecha_inici
     objetivo: {
       id: objetivo.id,
       nombre: objetivo.nombre,
+      marca_conseguida: objetivo.marca_conseguida || null,
       fecha_objetivo: objetivo.fecha_objetivo,
     },
     semana: insertResult.rows[0],
@@ -534,5 +548,70 @@ export async function registrarResultadoSesionDesdePlanificacionData({
   return {
     sesion: result.rows[0],
     regla_aplicada: marcadoSegunPlan ? 'segun_planificacion' : 'registro_manual',
+  };
+}
+
+function parseMarcaConseguidaOrThrow(marcaConseguida) {
+  const marcaNormalizada = String(marcaConseguida ?? '').trim();
+  if (!marcaNormalizada) {
+    throw new ServiceError(400, 'La marca_conseguida es requerida');
+  }
+  if (marcaNormalizada.length > 120) {
+    throw new ServiceError(400, 'La marca_conseguida no puede superar 120 caracteres');
+  }
+
+  return marcaNormalizada;
+}
+
+export async function registrarMarcaObjetivoDesdePlanificacionData({ atletaId, objetivoId, marca_conseguida }) {
+  if (!objetivoId || Number.isNaN(Number(objetivoId))) {
+    throw new ServiceError(400, 'El objetivoId debe ser un número válido');
+  }
+
+  const marcaNormalizada = parseMarcaConseguidaOrThrow(marca_conseguida);
+
+  const objetivoResult = await query(
+    `SELECT
+       o.id,
+       o.atleta_id,
+       o.activo,
+       o.fecha_objetivo,
+       (o.fecha_objetivo - (CURRENT_TIMESTAMP AT TIME ZONE '${BUSINESS_TZ}')::date) AS dias_hasta_objetivo,
+       o.marca_conseguida
+     FROM objetivo o
+     WHERE o.id = $1
+     LIMIT 1;`,
+    [objetivoId]
+  );
+
+  if (objetivoResult.rows.length === 0) {
+    throw new ServiceError(404, `No se encontró objetivo con id ${objetivoId}`);
+  }
+
+  const objetivo = objetivoResult.rows[0];
+  if (Number(objetivo.atleta_id) !== Number(atletaId)) {
+    throw new ServiceError(409, 'El objetivo seleccionado no pertenece al atleta indicado');
+  }
+
+  const diasRestantes = Number(objetivo.dias_hasta_objetivo);
+  if (diasRestantes > 0) {
+    throw new ServiceError(409, 'La marca solo se puede registrar cuando quedan 0 o menos días');
+  }
+
+  // Regla de negocio: registrar marca cierra el objetivo automáticamente.
+  const updateResult = await query(
+    `UPDATE objetivo
+     SET marca_conseguida = $1,
+         activo = false,
+         updated_at = CURRENT_TIMESTAMP
+     WHERE id = $2
+     RETURNING id, atleta_id, nombre, distancia_objetivo, marca_conseguida, fecha_objetivo, activo, updated_at;`,
+    [marcaNormalizada, objetivo.id]
+  );
+
+  return {
+    objetivo: updateResult.rows[0],
+    dias_hasta_objetivo: diasRestantes,
+    regla_aplicada: 'registro_marca_cierra_objetivo',
   };
 }

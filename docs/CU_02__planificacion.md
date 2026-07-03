@@ -76,6 +76,10 @@ La pantalla inicial **no** carga históricos. Los históricos se consultan en pa
 14. Para registrar resultado (CU-05), una sesión siempre mantiene un único valor vigente de `kilometros_realizados`.
 15. El total semanal de km realizados se recalcula automáticamente sumando los valores actuales de las sesiones de la semana.
 16. Regla de no doble conteo: actualizar una sesión sustituye su valor previo; nunca se acumulan valores históricos de la misma sesión.
+17. `dias_hasta_objetivo` se calcula con fecha de negocio (`Europe/Madrid`) para evitar desfases por zona horaria.
+18. Cuando `dias_hasta_objetivo <= 0`, se habilita registrar `marca_conseguida` del objetivo.
+19. Registrar una marca válida cierra automáticamente el objetivo en backend (`activo = false`).
+20. El registro de marca sigue disponible con días negativos mientras no exista `marca_conseguida`.
 
 ---
 
@@ -98,6 +102,8 @@ Devuelve el contexto de planificación del atleta en una única respuesta.
     "objetivo": {
       "id": 12,
       "nombre": "Media maratón 1:45",
+      "distancia_objetivo": "Media Maratón",
+      "marca_conseguida": null,
       "fecha_objetivo": "2026-07-20",
       "dias_hasta_objetivo": 31
     },
@@ -237,6 +243,25 @@ Registra el resultado real de una sesión (CU-05).
 2. Si `realizado_segun_planificacion = false`, se usa el valor manual informado (o `null` si no se informa).
 3. La sesión queda con un único valor actual de km realizados; el total semanal se recalcula desde las sesiones actuales.
 
+### PATCH /planificacion/:atletaId/objetivos/:objetivoId/marca
+
+Registra la marca conseguida y cierra automáticamente el objetivo.
+
+**Body:**
+
+```json
+{
+  "marca_conseguida": "1:18:42"
+}
+```
+
+**Comportamiento:**
+
+1. Solo permite registrar marca si `dias_hasta_objetivo <= 0`.
+2. Guarda `marca_conseguida` en `objetivo`.
+3. Cambia `objetivo.activo = false` en la misma operación de backend.
+4. El objetivo deja de aparecer como activo y pasa al historial.
+
 ---
 
 ## Decisión Técnica Relevante
@@ -264,7 +289,9 @@ Ventajas:
 9. Backend crea semana con `fecha_fin` calculada y frontend recarga planificación.
 10. Para CU-04, frontend llama `POST /planificacion/:atletaId/semanas/:semanaId/sesiones`.
 11. Para CU-05, cada fila de sesión permite registrar resultado con `PATCH /planificacion/:atletaId/semanas/:semanaId/sesiones/:sesionId/resultado`.
-12. Tras guardar resultado, frontend recarga planificación para mostrar km realizados de semana recalculados.
+12. Si `dias_hasta_objetivo <= 0`, frontend muestra panel para registrar marca conseguida.
+13. Frontend llama `PATCH /planificacion/:atletaId/objetivos/:objetivoId/marca`.
+14. Tras registrar y confirmar, frontend recarga planificación y muestra mensaje de cierre; el objetivo queda inactivo.
 
 ---
 

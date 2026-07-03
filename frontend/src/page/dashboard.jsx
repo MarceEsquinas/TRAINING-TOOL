@@ -93,8 +93,8 @@ function Dashboard({ onOpenPlanificacion, onOpenHistorial, onOpenFeedbackFromNot
         id: atleta.atleta_id,
         nombre: atleta.atleta_nombre || atleta.nombre,
         objetivo: atleta.objetivo_nombre,
-        fechaObjetivo: atleta.semana_fecha_fin || '-',
-        diasRestantes: atleta.dias_hasta_objetivo,
+        fechaObjetivo: atleta.fecha_objetivo || '-',
+        diasRestantes: Number(atleta.dias_hasta_objetivo ?? 0),
         kilometrosHechos: Number(atleta.km_realizados_semana || 0),
         kilometrosPlanificados: Number(atleta.km_planificados_semana || 0),
         estado: labelByEstado[estadoPrioritario] || estadoPrioritario,
@@ -255,7 +255,10 @@ function Dashboard({ onOpenPlanificacion, onOpenHistorial, onOpenFeedbackFromNot
 
           <div className="athletes-list">
             {atletasOrdenados.map((atleta) => (
-              <article className="athlete-card" key={atleta.id || atleta.nombre}>
+              <article
+                className={`athlete-card${atleta.diasRestantes <= 0 ? ' athlete-card--objetivo-vencido' : ''}`}
+                key={atleta.id || atleta.nombre}
+              >
                 <div className="athlete-card__head">
                   <div>
                     <h3 translate="no">{atleta.nombre}</h3>
@@ -268,7 +271,7 @@ function Dashboard({ onOpenPlanificacion, onOpenHistorial, onOpenFeedbackFromNot
 
                 <div className="athlete-card__grid">
                   <div>
-                    <span className="field-label">Semana (fin)</span>
+                    <span className="field-label">Fecha objetivo</span>
                     <strong>{formatDate(atleta.fechaObjetivo)}</strong>
                   </div>
                   <div>

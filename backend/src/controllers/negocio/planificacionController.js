@@ -4,6 +4,7 @@ import {
   createSemanaDesdePlanificacionData,
   createSesionSemanaDesdePlanificacionData,
   registrarResultadoSesionDesdePlanificacionData,
+  registrarMarcaObjetivoDesdePlanificacionData,
 } from '../../services/negocio/planificacionService.js';
 import { ServiceError } from '../../services/serviceError.js';
 
@@ -132,6 +133,34 @@ export async function registrarResultadoSesionDesdePlanificacion(req, res) {
     return res.status(500).json({
       success: false,
       message: 'Error al registrar resultado de sesión',
+      error: error.message,
+    });
+  }
+}
+
+// Controlador para PATCH /planificacion/:atletaId/objetivos/:objetivoId/marca
+export async function registrarMarcaObjetivoDesdePlanificacion(req, res) {
+  try {
+    const { atletaId, objetivoId } = req.params;
+    const data = await registrarMarcaObjetivoDesdePlanificacionData({
+      atletaId,
+      objetivoId,
+      ...(req.body ?? {}),
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: 'Marca registrada exitosamente',
+      data,
+    });
+  } catch (error) {
+    if (error instanceof ServiceError) {
+      return res.status(error.status).json({ success: false, message: error.message });
+    }
+    console.error('Error al registrar marca de objetivo:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Error al registrar marca de objetivo',
       error: error.message,
     });
   }

@@ -8,11 +8,11 @@ Sistema de gestión de entrenamientos para 4-50 atletas. Diseño simple, escalab
 
 ## ✅ Lo que tu modelo hizo bien
 
-1. **Jerarquía clara**: Usuario → Atleta → Objetivo → Semanas → Sesiones
-2. **Relaciones naturales**: Siguen el flujo real del negocio
-3. **Feedback integrado**: Captura reflexión post-semana
+1. **Jerarquía clara**: Usuario → Entrenador → Atleta → Semana de entrenamiento → Sesión de entrenamiento → Feedback
+2. **Relaciones naturales**: Siguen el flujo real del negocio con el entrenador como vínculo principal
+3. **Feedback integrado**: Captura reflexión post-semana en el mismo flujo de seguimiento
 4. **Flexibilidad en descripción**: Texto libre para entrenamientos variados
-5. **Escalable para V1**: No necesita más entidades
+5. **Escalable para V1**: No necesita más entidades para cubrir el alcance inicial
 
 ---
 
@@ -55,16 +55,18 @@ Sistema de gestión de entrenamientos para 4-50 atletas. Diseño simple, escalab
 ## 📊 Estructura Final de Tablas
 
 ```
-usuario (ADMIN, ATLETA)
+usuario (ADMIN, ATLETA, ENTRENADOR)
   ↓ 1:1
+entrenador
+  ↓ 1:N
 atleta
   ↓ 1:N
-objetivo (solo 1 activo)
-  ↓ 1:N
 semana_entrenamiento (sin solapamientos)
-  ↓ 1:N y 1:1
+  ↓ 1:N
 sesion_entrenamiento + feedback_semanal
 ```
+
+**Flujo actualizado de negocio**: el seguimiento del atleta queda centrado en el entrenador, desde la semana de entrenamiento hasta la sesión y su feedback.
 
 **Tamaño aproximado para 50 atletas**:
 - 50 usuarios
@@ -74,7 +76,7 @@ sesion_entrenamiento + feedback_semanal
 - ~1000 sesiones
 - ~400 feedback
 
-**Espacio estimado**: < 2 MB (sin considerar blobs)
+**Espacio estimado**: < 2 MB (sin considerar blocd)
 
 ---
 

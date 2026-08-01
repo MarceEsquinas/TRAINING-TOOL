@@ -3,14 +3,14 @@ import '../App.css'
 import { fetchDashboard } from '../services/dashboardApi'
 import logoCas from '../assets/CAS_3.jpeg'
 import { formatDate } from '../utils/dateFormat'
+import AppLayout from '../layouts/appLayout.jsx'
 
 function Dashboard({ onOpenPlanificacion, onOpenHistorial, onOpenFeedbackFromNotification }) {
-   // Estado de pantalla: datos, carga en curso y posible error de red.
+  // Estado de pantalla: datos, carga en curso y posible error de red.
   const [dashboardData, setDashboardData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [logoLoadError, setLogoLoadError] = useState(false)
-  const [notificationsOpen, setNotificationsOpen] = useState(false)
 
   // Carga inicial del dashboard al montar el componente.
   useEffect(() => {
@@ -47,24 +47,10 @@ function Dashboard({ onOpenPlanificacion, onOpenHistorial, onOpenFeedbackFromNot
   const atletas = useMemo(() => dashboardData?.atletas || [], [dashboardData])
   const notifications = useMemo(() => dashboardData?.notifications || [], [dashboardData])
 
-  // Conteo para la campana de notificaciones del topbar.
+  // Conteo para la campana de notificaciones del header.
   const feedbackNuevos = useMemo(() => {
     return Number(dashboardData?.summary?.num_feedback_nuevos || 0)
   }, [dashboardData])
-  const feedbackBadge = feedbackNuevos > 9 ? '9+' : String(feedbackNuevos)
-
-  function handleOpenNotification(notification) {
-    const atletaId = Number(notification?.atleta_id)
-    const feedbackId = Number(notification?.id)
-
-    if (!atletaId || !feedbackId) {
-      return
-    }
-
-    // Cierra el panel para que el flujo visual sea limpio antes de navegar.
-    setNotificationsOpen(false)
-    onOpenFeedbackFromNotification?.({ atletaId, feedbackId })
-  }
 
   // Mapea el modelo de backend al modelo visual que necesita la tarjeta de UI.
   const atletasUI = useMemo(() => {
@@ -179,66 +165,16 @@ function Dashboard({ onOpenPlanificacion, onOpenHistorial, onOpenFeedbackFromNot
         </button>
       </aside>
 
-      <div className="content">
-        {/* Barra superior: identidad del entrenador y zona reservada para avisos. */}
-        <header className="topbar">
-          <div className="trainer">
-            <div className="trainer__avatar" aria-hidden="true">
-              PG
-            </div>
-            <div>
-              <p className="eyebrow">Entrenador: Pepito García</p>
-              <p className="topbar__hint">Vista rápida del trabajo de hoy en el club</p>
-            </div>
-          </div>
-
-          <button
-            className="notifications"
-            type="button"
-            aria-label={`Notificaciones (${feedbackNuevos} pendientes)`}
-            aria-expanded={notificationsOpen}
-            onClick={() => setNotificationsOpen((prev) => !prev)}
-          >
-            <span className="notifications__bell" aria-hidden="true" />
-            <span className="notifications__text">Notificaciones</span>
-            {feedbackNuevos > 0 && (
-              <span className="notifications__badge" aria-hidden="true">
-                {feedbackBadge}
-              </span>
-            )}
-          </button>
-
-          {notificationsOpen && (
-            // Responsabilidad del componente: desplegar notificaciones pendientes en la misma pantalla.
-            <div className="notifications__panel" role="region" aria-label="Listado de notificaciones">
-              {notifications.length === 0 && (
-                <p className="notifications__empty">Sin feedback pendiente de lectura.</p>
-              )}
-
-              {notifications.length > 0 && (
-                <ul className="notifications__list" role="list">
-                  {notifications.map((notification) => (
-                    <li key={notification.id} className="notifications__item">
-                      <button
-                        className="notifications__item-button"
-                        type="button"
-                        onClick={() => handleOpenNotification(notification)}
-                      >
-                        <p className="notifications__line"><strong>Atleta:</strong> {notification.atleta_nombre || '-'}</p>
-                        <p className="notifications__line"><strong>Objetivo:</strong> {notification.objetivo_nombre || '-'}</p>
-                        <p className="notifications__line">
-                          <strong>Semana:</strong> {formatDate(notification.semana_fecha_inicio)} - {formatDate(notification.semana_fecha_fin)}
-                        </p>
-                        <p className="notifications__hint">Abrir feedback completo</p>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          )}
-        </header>
-
+      <AppLayout
+        headerProps={{
+          trainerName: 'Pepito García',
+          trainerRole: 'Entrenador',
+          trainerHint: 'Vista rápida del trabajo de hoy en el club',
+          notificationCount: feedbackNuevos,
+          notifications,
+          onOpenNotification: onOpenFeedbackFromNotification,
+        }}
+      >
         {/* Contenido principal: la atención se centra en qué atleta necesita acción. */}
         <section className="main-panel" aria-labelledby="panel-principal">
           <div className="panel-header">
@@ -259,7 +195,7 @@ function Dashboard({ onOpenPlanificacion, onOpenHistorial, onOpenFeedbackFromNot
                 className={`athlete-card${atleta.diasRestantes <= 0 ? ' athlete-card--objetivo-vencido' : ''}`}
                 key={atleta.id || atleta.nombre}
               >
-                <div className="athlete-card__head">
+                <div className="athlete-card__header">
                   <div>
                     <h3 translate="no">{atleta.nombre}</h3>
                     <p className="athlete-card__objective">{atleta.objetivo}</p>
@@ -309,6 +245,7 @@ function Dashboard({ onOpenPlanificacion, onOpenHistorial, onOpenFeedbackFromNot
                 </div>
               </article>
             ))}
+
             {/* Estado vacio: respuesta valida sin atletas activos. */}
             {!loading && !error && atletasOrdenados.length === 0 && (
               <p>No hay atletas activos para mostrar.</p>
@@ -332,7 +269,7 @@ function Dashboard({ onOpenPlanificacion, onOpenHistorial, onOpenFeedbackFromNot
             </ul>
           </footer>
         </section>
-      </div>
+      </AppLayout>
     </main>
   )
 }

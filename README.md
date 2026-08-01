@@ -1,7 +1,7 @@
 # Training Tool
 
 ## Descripción
-Training Tool es una aplicación web orientada a la gestión de entrenamientos de atletas amateurs muy enfocada a la adaptación de la persona.
+Training Tool es una aplicación web orientada a la gestión de entrenamientos de atletas amateurs  enfocada a la adaptación de la persona.
 
 El objetivo principal es permitir que un entrenador pueda planificar semanalmente entrenamientos personalizados, realizar un seguimiento de la evolución de sus atletas y adaptar la planificación en función del feedback recibido.
 

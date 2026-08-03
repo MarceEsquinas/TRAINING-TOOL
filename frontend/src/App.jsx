@@ -1,17 +1,38 @@
 import { useState } from 'react'
 import Dashboard from './page/dashboard.jsx'
+import Atletas from './page/atletas.jsx'
 import Planificacion from './page/planificacion.jsx'
 import Historial from './page/historial.jsx'
 import FeedbackDetalle from './page/feedbackDetalle.jsx'
+import AppLayout from './layouts/appLayout.jsx'
+
+function AdministracionMain() {
+  return (
+    <section className="main-panel" aria-labelledby="modulo-administracion">
+      <div className="panel-header">
+        <h2 id="modulo-administracion">Administración</h2>
+        <p className="panel-header__subtitle">
+          Espacio reservado para tareas de mantenimiento sin alterar el layout global.
+        </p>
+      </div>
+      <p className="module-note">La funcionalidad de administración se integrará aquí sin modificar Header ni Sidebar.</p>
+    </section>
+  )
+}
 
 function App() {
-  // Estado de navegación local: pantalla activa y atleta seleccionado.
+  // Módulo activo del layout principal.
+  const [activeModule, setActiveModule] = useState('dashboard')
+  // Estado de navegación local del módulo Atletas.
   const [activeView, setActiveView] = useState('dashboard')
   const [selectedAtletaId, setSelectedAtletaId] = useState(null)
   const [selectedFeedbackId, setSelectedFeedbackId] = useState(null)
+  const [headerNotifications, setHeaderNotifications] = useState([])
+  const [headerNotificationCount, setHeaderNotificationCount] = useState(0)
 
   // Navega a planificación usando el id del atleta pulsado en dashboard.
   function handleOpenPlanificacion(atletaId) {
+    setActiveModule('atletas')
     setSelectedAtletaId(atletaId)
     setSelectedFeedbackId(null)
     setActiveView('planificacion')
@@ -19,13 +40,15 @@ function App() {
 
   // Navega a historial usando el id del atleta pulsado en dashboard.
   function handleOpenHistorial(atletaId) {
+    setActiveModule('atletas')
     setSelectedAtletaId(atletaId)
     setSelectedFeedbackId(null)
     setActiveView('historial')
   }
 
-  // Navega al detalle directo del feedback seleccionado en la campana.
-  function handleOpenFeedbackFromNotification({ atletaId, feedbackId }) {
+  // Navega al detalle directo del feedback seleccionado en la campana del header.
+  function handleOpenFeedbackFromHeader({ atletaId, feedbackId }) {
+    setActiveModule('atletas')
     setSelectedAtletaId(atletaId)
     setSelectedFeedbackId(feedbackId)
     setActiveView('feedbackDetalle')
@@ -33,6 +56,7 @@ function App() {
 
   // Vuelve al panel principal y limpia selección temporal.
   function handleBackToDashboard() {
+    setActiveModule('dashboard')
     setActiveView('dashboard')
     setSelectedAtletaId(null)
     setSelectedFeedbackId(null)
@@ -40,48 +64,106 @@ function App() {
 
   function handleOpenHistorialFromFeedback() {
     if (!selectedAtletaId) {
+      setActiveModule('dashboard')
       setActiveView('dashboard')
       return
     }
 
+    setActiveModule('atletas')
     setSelectedFeedbackId(null)
     setActiveView('historial')
   }
 
-  if (activeView === 'planificacion' && selectedAtletaId) {
-    return (
-      <Planificacion
-        atletaId={selectedAtletaId}
-        onBack={handleBackToDashboard}
-      />
-    )
+  function handleNavigateModule(moduleId) {
+    if (moduleId === 'dashboard') {
+      setActiveModule('dashboard')
+      setActiveView('dashboard')
+      return
+    }
+
+    if (moduleId === 'atletas') {
+      setActiveModule('atletas')
+      setActiveView('atletasHome')
+      return
+    }
+
+    setActiveModule('administracion')
+    setActiveView('administracion')
   }
 
-  if (activeView === 'historial' && selectedAtletaId) {
-    return (
-      <Historial
-        atletaId={selectedAtletaId}
-        onBack={handleBackToDashboard}
-      />
-    )
+  function handleHeaderNotificationsChange({ notificationCount, notifications }) {
+    setHeaderNotificationCount(Number(notificationCount || 0))
+    setHeaderNotifications(Array.isArray(notifications) ? notifications : [])
   }
 
-  if (activeView === 'feedbackDetalle' && selectedFeedbackId) {
+  function renderMainContent() {
+    if (activeModule === 'dashboard') {
+      return (
+        <Dashboard
+          onOpenPlanificacion={handleOpenPlanificacion}
+          onOpenHistorial={handleOpenHistorial}
+          onHeaderNotificationsChange={handleHeaderNotificationsChange}
+        />
+      )
+    }
+
+    if (activeModule === 'administracion') {
+      return <AdministracionMain />
+    }
+
+    if (activeView === 'planificacion' && selectedAtletaId) {
+      return (
+        <Planificacion
+          atletaId={selectedAtletaId}
+          onBack={handleBackToDashboard}
+        />
+      )
+    }
+
+    if (activeView === 'historial' && selectedAtletaId) {
+      return (
+        <Historial
+          atletaId={selectedAtletaId}
+          onBack={handleBackToDashboard}
+        />
+      )
+    }
+
+    if (activeView === 'feedbackDetalle' && selectedFeedbackId) {
+      return (
+        <FeedbackDetalle
+          feedbackId={selectedFeedbackId}
+          onBack={handleBackToDashboard}
+          onOpenHistorial={handleOpenHistorialFromFeedback}
+        />
+      )
+    }
+
     return (
-      <FeedbackDetalle
-        feedbackId={selectedFeedbackId}
-        onBack={handleBackToDashboard}
-        onOpenHistorial={handleOpenHistorialFromFeedback}
+      <Atletas
+        onOpenPlanificacion={handleOpenPlanificacion}
+        onOpenHistorial={handleOpenHistorial}
       />
     )
   }
 
   return (
-    <Dashboard
-      onOpenPlanificacion={handleOpenPlanificacion}
-      onOpenHistorial={handleOpenHistorial}
-      onOpenFeedbackFromNotification={handleOpenFeedbackFromNotification}
-    />
+    <AppLayout
+      headerProps={{
+        trainerName: 'Pepito García',
+        trainerRole: 'Entrenador',
+        trainerHint: 'Vista rápida del trabajo de hoy en el club',
+        notificationCount: headerNotificationCount,
+        notifications: headerNotifications,
+        onOpenNotification: handleOpenFeedbackFromHeader,
+      }}
+      sidebarProps={{
+        activeModule,
+        onNavigate: handleNavigateModule,
+      }}
+    >
+      {renderMainContent()}
+    </AppLayout>
   )
 }
 

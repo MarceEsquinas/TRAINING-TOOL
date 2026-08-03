@@ -1,5 +1,6 @@
 import Header from '../components/layout/Header.jsx'
 import Sidebar from '../components/layout/Sidebar.jsx'
+import Main from '../components/layout/Main.jsx'
 
 function AppLayout({ children, headerProps, sidebarProps }) {
 	return (
@@ -7,7 +8,7 @@ function AppLayout({ children, headerProps, sidebarProps }) {
 			<Sidebar {...sidebarProps} />
 			<div className="content">
 				<Header {...headerProps} />
-				<main className="layout-main">{children}</main>
+				<Main>{children}</Main>
 			</div>
 		</div>
 	)

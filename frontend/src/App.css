@@ -13,7 +13,6 @@
   padding: 28px 20px;
   background: #fffdf4;
   border-right: 1px solid #e5ddbf;
-  min-width: 0;
 }
 
 .sidebar__brand,
@@ -109,12 +108,8 @@
   gap: 10px;
 }
 
-.sidebar__section {
-  display: grid;
-  gap: 10px;
-}
-
 .menu__item,
+.sidebar__logout,
 .plan-button {
   border: 1px solid #d9d1b1;
   background: #fffef8;
@@ -127,8 +122,7 @@
   text-align: left;
   padding: 12px 14px;
   border-radius: 12px;
-  display: grid;
-  gap: 4px;
+  cursor: pointer;
 }
 
 .menu__item--active {
@@ -137,14 +131,11 @@
   font-weight: 600;
 }
 
-.menu__item-title {
-  font-weight: 600;
-}
-
-.menu__item-description {
-  color: #6d623f;
-  font-size: 0.84rem;
-  line-height: 1.35;
+.sidebar__logout {
+  margin-top: auto;
+  padding: 12px 14px;
+  border-radius: 12px;
+  text-align: left;
 }
 
 .content {
@@ -154,6 +145,7 @@
 }
 
 .layout-main {
+  flex: 1;
   min-width: 0;
 }
 
@@ -324,81 +316,69 @@
   padding: 28px;
 }
 
-.sidebar__panel {
-  display: grid;
-  gap: 12px;
-  padding: 14px;
-  border: 1px solid #e6dfc7;
-  border-radius: 14px;
-  background: #fffef8;
-}
-
-.sidebar__panel-copy,
-.sidebar__status,
-.sidebar-tree__summary,
-.sidebar-tree__feedback {
+.module-note {
   margin: 0;
   color: #5f5a4d;
-  font-size: 0.88rem;
-  line-height: 1.45;
 }
 
-.sidebar-tree {
-  display: grid;
-  gap: 8px;
-}
-
-.sidebar-tree__node {
-  display: grid;
-  gap: 8px;
-}
-
-.sidebar-tree__button,
-.sidebar-admin__action {
-  width: 100%;
-  padding: 11px 12px;
-  border: 1px solid #ddd4b7;
-  border-radius: 12px;
-  background: #fffdf8;
-  color: #232323;
-  font: inherit;
-  text-align: left;
-}
-
-.sidebar-tree__button {
+.module-actions {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.atletas-tree {
+  display: grid;
   gap: 10px;
 }
 
-.sidebar-tree__button--child {
+.atletas-tree__node {
+  display: grid;
+  gap: 8px;
+}
+
+.atletas-tree__button {
+  width: 100%;
+  border: 1px solid #ddd4b7;
+  background: #fffef8;
+  color: #232323;
+  font: inherit;
+  text-align: left;
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.atletas-tree__button--child {
   padding-left: 16px;
 }
 
-.sidebar-tree__button--grandchild {
+.atletas-tree__button--grandchild {
   padding-left: 20px;
 }
 
-.sidebar-tree__button--active {
+.atletas-tree__button--active {
   border-color: #c9a929;
   background: linear-gradient(90deg, rgba(217, 45, 42, 0.08), rgba(242, 194, 48, 0.16));
 }
 
-.sidebar-tree__children {
+.atletas-tree__children {
   display: grid;
   gap: 8px;
   padding-left: 10px;
   border-left: 1px solid #eadfae;
 }
 
-.sidebar-tree__detail {
+.atletas-tree__detail {
   display: grid;
   gap: 10px;
   padding-left: 12px;
 }
 
-.sidebar-tree__leaf {
+.atletas-tree__leaf {
   display: grid;
   gap: 6px;
   padding: 12px;
@@ -407,7 +387,7 @@
   background: linear-gradient(180deg, #fffaf0 0%, #fffdf8 100%);
 }
 
-.sidebar-tree__leaf-label {
+.atletas-tree__leaf-label {
   margin: 0;
   font-size: 0.78rem;
   text-transform: uppercase;
@@ -415,15 +395,15 @@
   color: #8e7d48;
 }
 
-.sidebar-tree__list {
+.atletas-tree__list {
   list-style: none;
+  margin: 0;
+  padding: 0;
   display: grid;
   gap: 8px;
-  padding: 0;
-  margin: 0;
 }
 
-.sidebar-tree__list-item {
+.atletas-tree__list-item {
   display: grid;
   gap: 2px;
   padding: 10px;
@@ -434,13 +414,13 @@
   font-size: 0.88rem;
 }
 
-.sidebar-tree__meta {
+.atletas-tree__meta {
   color: #7b6a43;
   font-size: 0.78rem;
   white-space: nowrap;
 }
 
-.sidebar-tree__badge {
+.atletas-tree__badge {
   padding: 4px 8px;
   border-radius: 999px;
   border: 1px solid transparent;
@@ -449,32 +429,22 @@
   white-space: nowrap;
 }
 
-.sidebar-tree__badge--activo {
+.atletas-tree__badge--activo {
   background: #e4f5ea;
   border-color: #2f9d57;
   color: #267a44;
 }
 
-.sidebar-tree__badge--inactivo {
+.atletas-tree__badge--inactivo {
   background: #f6f3ea;
   border-color: #c8bea0;
   color: #5f5a4d;
 }
 
-.sidebar-tree__badge--finalizado {
+.atletas-tree__badge--finalizado {
   background: #e6efff;
   border-color: #3d73d1;
   color: #2d58a6;
-}
-
-.sidebar-admin {
-  display: grid;
-  gap: 8px;
-}
-
-.sidebar-admin__action:disabled {
-  opacity: 0.85;
-  cursor: not-allowed;
 }
 
 .panel-header {
@@ -678,17 +648,6 @@
 
 .plan-button:hover {
   background: linear-gradient(90deg, rgba(217, 45, 42, 0.14), rgba(242, 194, 48, 0.28));
-}
-
-@media (max-width: 1024px) {
-  .app-shell {
-    grid-template-columns: 1fr;
-  }
-
-  .sidebar {
-    border-right: 0;
-    border-bottom: 1px solid #e5ddbf;
-  }
 }
 
 .planificacion {

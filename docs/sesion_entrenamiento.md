@@ -18,11 +18,14 @@ Desde CU-04, la sesión se crea desde la pantalla de Planificación y el foco es
 ## Estado actual de la implementación
 
 - El backend expone CU-04 en `POST /planificacion/:atletaId/semanas/:semanaId/sesiones`.
+- El backend expone consulta focalizada por recurso en `GET /semanasEntrenamiento/:semanaId/sesiones`.
 - Se mantiene también el CRUD general de sesiones para operaciones técnicas y mantenimiento.
 - El controlador de negocio está en `backend/src/controllers/negocio/planificacionController.js`.
 - La lógica de negocio está en `backend/src/services/negocio/planificacionService.js`.
 
 ## Comportamiento actual
+
+- El Sidebar consulta las sesiones por semana mediante `GET /semanasEntrenamiento/:semanaId/sesiones`, evitando descargar todas las sesiones y filtrarlas en frontend.
 
 - En CU-04 el entrenador solo introduce:
   - `descripcion`

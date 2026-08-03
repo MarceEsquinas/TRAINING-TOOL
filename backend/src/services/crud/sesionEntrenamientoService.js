@@ -6,6 +6,35 @@ export async function listSesionesEntrenamiento() {
   return result.rows;
 }
 
+async function assertSemanaEntrenamientoExists(semanaId) {
+  if (!semanaId || Number.isNaN(Number(semanaId))) {
+    throw new ServiceError(400, 'El semanaId debe ser un número válido');
+  }
+
+  const result = await query(
+    'SELECT id FROM semana_entrenamiento WHERE id = $1 LIMIT 1;',
+    [semanaId]
+  );
+
+  if (result.rows.length === 0) {
+    throw new ServiceError(404, `No se encontró semana de entrenamiento con id ${semanaId}`);
+  }
+}
+
+export async function listSesionesEntrenamientoBySemanaId(semanaId) {
+  await assertSemanaEntrenamientoExists(semanaId);
+
+  const result = await query(
+    `SELECT *
+     FROM sesion_entrenamiento
+     WHERE semana_id = $1
+     ORDER BY orden ASC, id ASC;`,
+    [semanaId]
+  );
+
+  return result.rows;
+}
+
 export async function findSesionEntrenamientoById(id) {
   const result = await query('SELECT * FROM sesion_entrenamiento WHERE id = $1', [id]);
   return result.rows[0] ?? null;

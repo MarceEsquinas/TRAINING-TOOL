@@ -1,11 +1,11 @@
 import NotificationBell from './NotificationBell.jsx'
-import trainerAvatar from '../../assets/trainer-avatar.svg'
+import f_entrenador from '../../assets/f_entrenador.jpg'
 
 function Header({
   trainerName = 'Pepito García',
   trainerRole = 'Entrenador',
   trainerHint = 'Vista rápida del trabajo de hoy en el club',
-  trainerPhotoSrc = trainerAvatar,
+  trainerPhotoSrc = f_entrenador,
   notificationCount = 0,
   notifications = [],
   onOpenNotification,

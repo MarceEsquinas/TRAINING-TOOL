@@ -1,5 +1,6 @@
 import {
   listSesionesEntrenamiento,
+  listSesionesEntrenamientoBySemanaId,
   findSesionEntrenamientoById,
   createSesionEntrenamiento,
   updateSesionEntrenamiento,
@@ -22,6 +23,30 @@ export async function getSesionesEntrenamiento(req, res) {
     return res.status(500).json({
       success: false,
       message: 'Error al obtener sesiones de entrenamiento de la base de datos',
+      error: error.message,
+    });
+  }
+}
+
+// Controlador para listar las sesiones de una semana concreta.
+export async function getSesionesEntrenamientoBySemanaId(req, res) {
+  try {
+    const { semanaId } = req.params;
+    const sesiones = await listSesionesEntrenamientoBySemanaId(semanaId);
+
+    return res.status(200).json({
+      success: true,
+      data: sesiones,
+      count: sesiones.length,
+    });
+  } catch (error) {
+    if (error instanceof ServiceError) {
+      return res.status(error.status).json({ success: false, message: error.message });
+    }
+    console.error('Error al obtener sesiones de entrenamiento por semana:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Error al obtener las sesiones de la semana desde la base de datos',
       error: error.message,
     });
   }

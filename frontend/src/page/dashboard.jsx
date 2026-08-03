@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import '../App.css'
 import { fetchDashboard } from '../services/dashboardApi'
-import logoCas from '../assets/CAS_3.jpeg'
 import { formatDate } from '../utils/dateFormat'
 import AppLayout from '../layouts/appLayout.jsx'
 
@@ -10,7 +9,6 @@ function Dashboard({ onOpenPlanificacion, onOpenHistorial, onOpenFeedbackFromNot
   const [dashboardData, setDashboardData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [logoLoadError, setLogoLoadError] = useState(false)
 
   // Carga inicial del dashboard al montar el componente.
   useEffect(() => {
@@ -119,158 +117,111 @@ function Dashboard({ onOpenPlanificacion, onOpenHistorial, onOpenFeedbackFromNot
   ]
 
   return (
-    <main className="app-shell">
-      {/* Barra lateral izquierda: navegación principal del entrenador. */}
-      <aside className="sidebar" aria-label="Navegación principal">
-        <div className="sidebar__brand">
-          <div className="sidebar__mark" aria-hidden="true">
-            {!logoLoadError && (
-              <img
-                className="sidebar__logo"
-                src={logoCas}
-                alt=""
-                onError={() => setLogoLoadError(true)}
-              />
-            )}
-            <span className={`sidebar__mark-main${logoLoadError ? '' : ' sidebar__mark-main--hidden'}`}>
-              TT
-            </span>
-            <span className={`sidebar__mark-sub${logoLoadError ? '' : ' sidebar__mark-sub--hidden'}`}>
-              app
-            </span>
-          </div>
-          <div>
-            <p className="eyebrow eyebrow--brand">Training Tool</p>
-            <h1 className="sidebar__title">Panel de trabajo</h1>
-          </div>
+    <AppLayout
+      headerProps={{
+        trainerName: 'Pepito García',
+        trainerRole: 'Entrenador',
+        trainerHint: 'Vista rápida del trabajo de hoy en el club',
+        notificationCount: feedbackNuevos,
+        notifications,
+        onOpenNotification: onOpenFeedbackFromNotification,
+      }}
+      sidebarProps={{
+        activeModule: 'panelPrincipal',
+      }}
+    >
+      <section className="main-panel" aria-labelledby="panel-principal">
+        <div className="panel-header">
+          <h2 id="panel-principal">Panel principal</h2>
+          <p className="panel-header__subtitle">
+            ¿Qué atleta necesita hoy mi atención?
+          </p>
+          <p className="panel-header__note">Atletas con objetivo activo.</p>
         </div>
 
-        <nav className="menu" aria-label="Secciones">
-          <button className="menu__item menu__item--active" type="button">
-            Panel principal
-          </button>
-          <button className="menu__item" type="button">
-            Atletas
-          </button>
-          <button className="menu__item" type="button">
-            Objetivos
-          </button>
-          <button className="menu__item" type="button">
-            Historial
-          </button>
-        </nav>
+        {loading && <p>Cargando dashboard...</p>}
+        {error && !loading && <p>{error}</p>}
 
-        <button className="sidebar__logout" type="button">
-          Cerrar sesión
-        </button>
-      </aside>
-
-      <AppLayout
-        headerProps={{
-          trainerName: 'Pepito García',
-          trainerRole: 'Entrenador',
-          trainerHint: 'Vista rápida del trabajo de hoy en el club',
-          notificationCount: feedbackNuevos,
-          notifications,
-          onOpenNotification: onOpenFeedbackFromNotification,
-        }}
-      >
-        {/* Contenido principal: la atención se centra en qué atleta necesita acción. */}
-        <section className="main-panel" aria-labelledby="panel-principal">
-          <div className="panel-header">
-            <h2 id="panel-principal">Panel principal</h2>
-            <p className="panel-header__subtitle">
-              ¿Qué atleta necesita hoy mi atención?
-            </p>
-            <p className="panel-header__note">Atletas con objetivo activo.</p>
-          </div>
-
-          {/* Estados de experiencia: primero carga, luego error si existe. */}
-          {loading && <p>Cargando dashboard...</p>}
-          {error && !loading && <p>{error}</p>}
-
-          <div className="athletes-list">
-            {atletasOrdenados.map((atleta) => (
-              <article
-                className={`athlete-card${atleta.diasRestantes <= 0 ? ' athlete-card--objetivo-vencido' : ''}`}
-                key={atleta.id || atleta.nombre}
-              >
-                <div className="athlete-card__header">
-                  <div>
-                    <h3 translate="no">{atleta.nombre}</h3>
-                    <p className="athlete-card__objective">{atleta.objetivo}</p>
-                  </div>
-                  <span className={`status-pill status-pill--${atleta.estadoColor}`}>
-                    {atleta.estado}
-                  </span>
+        <div className="athletes-list">
+          {atletasOrdenados.map((atleta) => (
+            <article
+              className={`athlete-card${atleta.diasRestantes <= 0 ? ' athlete-card--objetivo-vencido' : ''}`}
+              key={atleta.id || atleta.nombre}
+            >
+              <div className="athlete-card__header">
+                <div>
+                  <h3 translate="no">{atleta.nombre}</h3>
+                  <p className="athlete-card__objective">{atleta.objetivo}</p>
                 </div>
+                <span className={`status-pill status-pill--${atleta.estadoColor}`}>
+                  {atleta.estado}
+                </span>
+              </div>
 
-                <div className="athlete-card__grid">
-                  <div>
-                    <span className="field-label">Fecha objetivo</span>
-                    <strong>{formatDate(atleta.fechaObjetivo)}</strong>
-                  </div>
-                  <div>
-                    <span className="field-label">Días restantes</span>
-                    <strong>{atleta.diasRestantes}</strong>
-                  </div>
-                  <div>
-                    <span className="field-label">Kilómetros semanales</span>
-                    <strong>
-                      {atleta.kilometrosHechos} / {atleta.kilometrosPlanificados} km
-                    </strong>
-                  </div>
+              <div className="athlete-card__grid">
+                <div>
+                  <span className="field-label">Fecha objetivo</span>
+                  <strong>{formatDate(atleta.fechaObjetivo)}</strong>
                 </div>
+                <div>
+                  <span className="field-label">Días restantes</span>
+                  <strong>{atleta.diasRestantes}</strong>
+                </div>
+                <div>
+                  <span className="field-label">Kilómetros semanales</span>
+                  <strong>
+                    {atleta.kilometrosHechos} / {atleta.kilometrosPlanificados} km
+                  </strong>
+                </div>
+              </div>
 
-                <div className="athlete-card__footer">
-                  <span className="field-label">{atleta.razonEstado || 'Prioridad de trabajo'}</span>
-                  <div className="planificacion__actions">
-                    <button
-                      className="plan-button"
-                      type="button"
-                      onClick={() => onOpenPlanificacion?.(atleta.id)}
-                      disabled={!atleta.id}
-                    >
-                      Ver planificación
-                    </button>
-                    <button
-                      className="plan-button"
-                      type="button"
-                      onClick={() => onOpenHistorial?.(atleta.id)}
-                      disabled={!atleta.id}
-                    >
-                      Ver historial
-                    </button>
-                  </div>
+              <div className="athlete-card__footer">
+                <span className="field-label">{atleta.razonEstado || 'Prioridad de trabajo'}</span>
+                <div className="planificacion__actions">
+                  <button
+                    className="plan-button"
+                    type="button"
+                    onClick={() => onOpenPlanificacion?.(atleta.id)}
+                    disabled={!atleta.id}
+                  >
+                    Ver planificación
+                  </button>
+                  <button
+                    className="plan-button"
+                    type="button"
+                    onClick={() => onOpenHistorial?.(atleta.id)}
+                    disabled={!atleta.id}
+                  >
+                    Ver historial
+                  </button>
                 </div>
-              </article>
+              </div>
+            </article>
+          ))}
+
+          {!loading && !error && atletasOrdenados.length === 0 && (
+            <p>No hay atletas activos para mostrar.</p>
+          )}
+        </div>
+
+        <footer className="legend" aria-label="Leyenda de prioridades">
+          <p className="field-label">Orden de prioridad</p>
+          <ul>
+            {leyendaPrioridad.map((item) => (
+              <li className="legend__item" key={item.prioridad}>
+                <span
+                  className={`legend__dot legend__dot--${item.color}`}
+                  aria-hidden="true"
+                />
+                <span className="legend__text">
+                  <strong>{item.prioridad}.</strong> {item.titulo}
+                </span>
+              </li>
             ))}
-
-            {/* Estado vacio: respuesta valida sin atletas activos. */}
-            {!loading && !error && atletasOrdenados.length === 0 && (
-              <p>No hay atletas activos para mostrar.</p>
-            )}
-          </div>
-
-          <footer className="legend" aria-label="Leyenda de prioridades">
-            <p className="field-label">Orden de prioridad</p>
-            <ul>
-              {leyendaPrioridad.map((item) => (
-                <li className="legend__item" key={item.prioridad}>
-                  <span
-                    className={`legend__dot legend__dot--${item.color}`}
-                    aria-hidden="true"
-                  />
-                  <span className="legend__text">
-                    <strong>{item.prioridad}.</strong> {item.titulo}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </footer>
-        </section>
-      </AppLayout>
-    </main>
+          </ul>
+        </footer>
+      </section>
+    </AppLayout>
   )
 }
 

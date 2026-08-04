@@ -1,6 +1,6 @@
 import Header from '../components/layout/Header.jsx'
 import Sidebar from '../components/layout/Sidebar.jsx'
-import Main from '../components/layout/Main.jsx'
+import PageContainer from '../components/layout/pageContainer.jsx'
 
 function AppLayout({ children, headerProps, sidebarProps }) {
 	return (
@@ -8,7 +8,7 @@ function AppLayout({ children, headerProps, sidebarProps }) {
 			<Sidebar {...sidebarProps} />
 			<div className="content">
 				<Header {...headerProps} />
-				<Main>{children}</Main>
+				<PageContainer>{children}</PageContainer>
 			</div>
 		</div>
 	)

@@ -1,4 +1,4 @@
-function Main({ children }) {
+function pageContainer({ children }) {
   // Punto único de render del contenido activo dentro del layout.
   return (
     <main className="layout-main" role="main">
@@ -7,4 +7,4 @@ function Main({ children }) {
   )
 }
 
-export default Main
+export default pageContainer

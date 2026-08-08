@@ -1,24 +1,11 @@
 import { useState } from 'react'
 import Dashboard from './page/dashboard.jsx'
 import Atletas from './page/atletas.jsx'
+import Administracion from './page/administracion.jsx'
 import Planificacion from './page/planificacion.jsx'
 import Historial from './page/historial.jsx'
 import FeedbackDetalle from './page/feedbackDetalle.jsx'
 import AppLayout from './layouts/appLayout.jsx'
-
-function AdministracionMain() {
-  return (
-    <section className="main-panel" aria-labelledby="modulo-administracion">
-      <div className="panel-header">
-        <h2 id="modulo-administracion">Administración</h2>
-        <p className="panel-header__subtitle">
-          Espacio reservado para tareas de mantenimiento sin alterar el layout global.
-        </p>
-      </div>
-      <p className="module-note">La funcionalidad de administración se integrará aquí sin modificar Header ni Sidebar.</p>
-    </section>
-  )
-}
 
 function App() {
   // Módulo activo del layout principal.
@@ -108,7 +95,7 @@ function App() {
     }
 
     if (activeModule === 'administracion') {
-      return <AdministracionMain />
+      return <Administracion />
     }
 
     if (activeView === 'planificacion' && selectedAtletaId) {

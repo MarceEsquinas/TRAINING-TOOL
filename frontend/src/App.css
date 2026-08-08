@@ -327,6 +327,72 @@
   flex-wrap: wrap;
 }
 
+.admin-grid {
+  display: grid;
+  gap: 18px;
+}
+
+.admin-card {
+  background: #ffffff;
+  border: 1px solid #e3dcc6;
+  border-radius: 16px;
+  padding: 20px;
+  display: grid;
+  gap: 12px;
+}
+
+.admin-card h3,
+.admin-card h4 {
+  margin: 0;
+}
+
+.admin-form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+}
+
+.admin-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.admin-list__item {
+  border: 1px solid #e6dfc7;
+  border-radius: 12px;
+  padding: 12px;
+  display: grid;
+  gap: 8px;
+}
+
+.admin-accordion-item {
+  display: grid;
+  gap: 10px;
+}
+
+.admin-accordion-item__summary {
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.admin-accordion-item__summary::-webkit-details-marker {
+  display: none;
+}
+
+.admin-accordion-item__content {
+  display: grid;
+  gap: 8px;
+  border-top: 1px dashed #ddd4b7;
+  padding-top: 10px;
+}
+
 .atletas-tree {
   display: grid;
   gap: 10px;

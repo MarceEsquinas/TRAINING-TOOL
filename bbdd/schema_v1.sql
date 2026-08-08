@@ -340,8 +340,8 @@ INSERT INTO usuario (username, password_hash, rol)
 VALUES ('coach.pepe', '$2b$12$...', 'ADMIN');
 
 -- Entrenador
-INSERT INTO entrenadores (usuario_id, nombre, correo, password_hash)
-VALUES (2, 'Pepito García', 'coach.pepe@club.test', '$2b$12$...');
+INSERT INTO entrenadores (nombre, correo, password_hash)
+VALUES ('Pepito García', 'coach.pepe@club.test', '$2b$12$...');
 
 -- Usuario atleta
 INSERT INTO usuario (username, password_hash, rol)

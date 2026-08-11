@@ -291,6 +291,8 @@ CRUD implementado para:
 - `/sesionesEntrenamiento`
 - `/feedback`
 
+Nota de negocio: al crear un usuario con rol `ATLETA`, el backend crea también su fila asociada en `atleta` con el mismo `usuario_id` y `entrenador_id = NULL`. Para roles distintos de `ATLETA` no se crea ningún perfil de atleta.
+
 ---
 
 ## 🚀 Instalación y Arranque

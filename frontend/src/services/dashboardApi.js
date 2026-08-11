@@ -1,7 +1,7 @@
-import { API_BASE_URL } from './apiBaseUrl'
+import { API_BASE_URL, fetchWithAuth } from './apiBaseUrl'
 
 export async function fetchDashboard({ limit = 50, offset = 0 } = {}) {
-  const response = await fetch(
+  const response = await fetchWithAuth(
     `${API_BASE_URL}/dashboard?limit=${limit}&offset=${offset}`
   )
 

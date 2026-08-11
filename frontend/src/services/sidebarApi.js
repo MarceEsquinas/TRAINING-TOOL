@@ -1,7 +1,7 @@
-import { API_BASE_URL } from './apiBaseUrl'
+import { API_BASE_URL, fetchWithAuth } from './apiBaseUrl'
 
 async function fetchJson(path, notFoundMessage, fallbackMessage) {
-  const response = await fetch(`${API_BASE_URL}${path}`)
+  const response = await fetchWithAuth(`${API_BASE_URL}${path}`)
 
   if (!response.ok) {
     if (response.status === 404 && notFoundMessage) {

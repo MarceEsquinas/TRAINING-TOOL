@@ -12,7 +12,8 @@ export async function postLogin(req, res) {
       success: true,
       message: 'Login correcto',
       data: {
-        usuario,
+        token: usuario.token,
+        usuario: usuario.usuario,
       },
     });
   } catch (error) {

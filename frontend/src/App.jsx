@@ -18,7 +18,7 @@ function loadStoredAuthUser() {
     }
 
     const parsed = JSON.parse(raw)
-    if (!parsed?.id || !parsed?.username) {
+    if (!parsed?.id || !parsed?.username || !parsed?.token) {
       return null
     }
 
@@ -115,6 +115,15 @@ function App() {
   }
 
   function renderMainContent() {
+    // Bloqueo de seguridad en UI: ATLETA no puede navegar a módulos que no le corresponden.
+    if (activeModule === 'administracion' && authUser.rol !== 'ADMIN') {
+      return <p style={{ padding: '24px' }}>No tienes permiso para acceder a este módulo.</p>
+    }
+
+    if (activeModule === 'atletas' && authUser.rol === 'ATLETA') {
+      return <p style={{ padding: '24px' }}>No tienes permiso para acceder a este módulo.</p>
+    }
+
     if (activeModule === 'dashboard') {
       return (
         <Dashboard
@@ -178,6 +187,7 @@ function App() {
       sidebarProps={{
         activeModule,
         onNavigate: handleNavigateModule,
+        rol: authUser.rol,
       }}
     >
       {renderMainContent()}

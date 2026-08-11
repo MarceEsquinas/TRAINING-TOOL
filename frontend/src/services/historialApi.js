@@ -1,11 +1,11 @@
-import { API_BASE_URL } from './apiBaseUrl'
+import { API_BASE_URL, fetchWithAuth } from './apiBaseUrl'
 
 export async function fetchHistorialAtleta(atletaId) {
   if (!atletaId) {
     throw new Error('Se requiere atletaId para consultar historial')
   }
 
-  const response = await fetch(`${API_BASE_URL}/historial/atletas/${atletaId}`)
+  const response = await fetchWithAuth(`${API_BASE_URL}/historial/atletas/${atletaId}`)
 
   if (!response.ok) {
     if (response.status === 404) {
@@ -28,7 +28,7 @@ export async function fetchDetalleFeedback(feedbackId) {
     throw new Error('Se requiere feedbackId para consultar el detalle')
   }
 
-  const response = await fetch(`${API_BASE_URL}/historial/feedback/${feedbackId}`)
+  const response = await fetchWithAuth(`${API_BASE_URL}/historial/feedback/${feedbackId}`)
 
   if (!response.ok) {
     if (response.status === 404) {

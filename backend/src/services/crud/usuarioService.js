@@ -1,5 +1,5 @@
 import crypto from 'crypto';
-import { query } from '../../config/db.js';
+import pool, { query } from '../../config/db.js';
 import { ServiceError } from '../serviceError.js';
 
 function hashPassword(password) {
@@ -17,7 +17,17 @@ export async function findUsuarioById(id) {
 }
 
 export async function createUsuario(payload) {
-  const { username, password, rol = 'ATLETA' } = payload;
+  const {
+    username,
+    password,
+    rol = 'ATLETA',
+    nombre,
+    sexo,
+    peso,
+    dias_disponibles,
+    km_medios_ultimos_2_meses,
+    lesiones_ultimo_anio,
+  } = payload;
   const rolUpper = rol ? String(rol).toUpperCase() : 'ATLETA';
 
   if (!username || String(username).trim() === '') {
@@ -28,23 +38,71 @@ export async function createUsuario(payload) {
     throw new ServiceError(400, 'La contraseña es requerida y debe tener al menos 6 caracteres');
   }
 
-  const rolesValidos = ['ADMIN', 'ATLETA'];
+  const rolesValidos = ['ADMIN', 'ATLETA', 'ENTRENADOR'];
   if (!rolesValidos.includes(rolUpper)) {
-    throw new ServiceError(400, 'El rol debe ser ADMIN o ATLETA');
+    throw new ServiceError(400, 'El rol debe ser ADMIN, ATLETA o ENTRENADOR');
   }
 
+  if (rolUpper === 'ATLETA') {
+    if (!nombre || String(nombre).trim() === '') {
+      throw new ServiceError(400, 'El nombre del atleta es requerido');
+    }
+
+    if (peso !== undefined && peso !== null && Number(peso) <= 0) {
+      throw new ServiceError(400, 'El peso debe ser mayor a 0');
+    }
+
+    const sexosValidos = ['M', 'F', 'OTRO'];
+    if (sexo && !sexosValidos.includes(sexo)) {
+      throw new ServiceError(400, 'El sexo debe ser M, F u OTRO');
+    }
+  }
+
+  const client = await pool.connect();
+
   try {
+    await client.query('BEGIN');
+
     const passwordHash = hashPassword(password);
-    const result = await query(
+    const userResult = await client.query(
       'INSERT INTO usuario (username, password_hash, rol) VALUES ($1, $2, $3) RETURNING id, username, rol, created_at, updated_at',
       [String(username).trim(), passwordHash, rolUpper]
     );
-    return result.rows[0];
+
+    const usuarioCreado = userResult.rows[0];
+
+    if (rolUpper === 'ATLETA') {
+      const atletaSql = `
+        INSERT INTO atleta
+        (nombre, usuario_id, sexo, peso, dias_disponibles, km_medios_ultimos_2_meses, lesiones_ultimo_anio, entrenador_id)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, NULL)
+        RETURNING *;
+      `;
+
+      const atletaParams = [
+        String(nombre).trim(),
+        usuarioCreado.id,
+        sexo || null,
+        peso || null,
+        dias_disponibles ? JSON.stringify(dias_disponibles) : '[]',
+        km_medios_ultimos_2_meses || null,
+        lesiones_ultimo_anio ? JSON.stringify(lesiones_ultimo_anio) : '[]',
+      ];
+
+      await client.query(atletaSql, atletaParams);
+    }
+
+    await client.query('COMMIT');
+    return usuarioCreado;
   } catch (error) {
+    await client.query('ROLLBACK').catch(() => {});
+
     if (error.code === '23505') {
       throw new ServiceError(409, 'El username ya existe');
     }
     throw error;
+  } finally {
+    client.release();
   }
 }
 
@@ -73,9 +131,9 @@ export async function updateUsuario(id, payload) {
 
   if (rol !== undefined) {
     const rolUpper = String(rol).toUpperCase();
-    const rolesValidos = ['ADMIN', 'ATLETA'];
+    const rolesValidos = ['ADMIN', 'ATLETA', 'ENTRENADOR'];
     if (!rolesValidos.includes(rolUpper)) {
-      throw new ServiceError(400, 'El rol debe ser ADMIN o ATLETA');
+      throw new ServiceError(400, 'El rol debe ser ADMIN, ATLETA o ENTRENADOR');
     }
     fields.push(`rol = $${idx++}`);
     params.push(rolUpper);

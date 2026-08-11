@@ -7,15 +7,18 @@ import {
 	updateSesionEntrenamientoById,
 	deleteSesionEntrenamientoById,
 } from '../../controllers/crud/sesionEntrenamientoController.js';
+import { verificarToken } from '../../middleware/verificarToken.js';
+import { verificarRol } from '../../middleware/verificarRol.js';
 
 const router = express.Router();
 
-// Rutas CRUD de sesiones de entrenamiento.
-router.get('/sesionesEntrenamiento', getSesionesEntrenamiento);
-router.get('/semanasEntrenamiento/:semanaId/sesiones', getSesionesEntrenamientoBySemanaId);
-router.get('/sesionesEntrenamiento/:id', getSesionEntrenamientoById);
-router.put('/sesionesEntrenamiento/:id', updateSesionEntrenamientoById);
-router.delete('/sesionesEntrenamiento/:id', deleteSesionEntrenamientoById);
-router.post('/sesionesEntrenamiento', postSesionEntrenamiento);
+const adminEntrenador = [verificarToken, verificarRol('ADMIN', 'ENTRENADOR')];
+
+router.get('/sesionesEntrenamiento', ...adminEntrenador, getSesionesEntrenamiento);
+router.get('/semanasEntrenamiento/:semanaId/sesiones', ...adminEntrenador, getSesionesEntrenamientoBySemanaId);
+router.get('/sesionesEntrenamiento/:id', ...adminEntrenador, getSesionEntrenamientoById);
+router.post('/sesionesEntrenamiento', ...adminEntrenador, postSesionEntrenamiento);
+router.put('/sesionesEntrenamiento/:id', ...adminEntrenador, updateSesionEntrenamientoById);
+router.delete('/sesionesEntrenamiento/:id', ...adminEntrenador, deleteSesionEntrenamientoById);
 
 export default router;

@@ -6,22 +6,17 @@ import {
   getHistorialFeedbackAtleta,
   getDetalleFeedback,
 } from '../../controllers/negocio/historialAtletaController.js';
+import { verificarToken } from '../../middleware/verificarToken.js';
+import { verificarRol } from '../../middleware/verificarRol.js';
 
 const router = express.Router();
 
-// Ruta para obtener el historial completo de un atleta.
-router.get('/historial/atletas/:atletaId', getHistorialCompletoAtleta);
+const soloAdminEntrenador = [verificarToken, verificarRol('ADMIN', 'ENTRENADOR')];
 
-// Ruta para obtener el historial de objetivos de un atleta.
-router.get('/historial/atletas/:atletaId/objetivos', getHistorialObjetivosAtleta);
-
-// Ruta para obtener el historial de planificación de un objetivo.
-router.get('/historial/objetivos/:objetivoId/planificacion', getHistorialPlanificacionObjetivo);
-
-// Ruta para obtener el historial resumido de feedback de un atleta.
-router.get('/historial/atletas/:atletaId/feedback', getHistorialFeedbackAtleta);
-
-// Ruta para obtener el detalle de un feedback concreto.
-router.get('/historial/feedback/:feedbackId', getDetalleFeedback);
+router.get('/historial/atletas/:atletaId', ...soloAdminEntrenador, getHistorialCompletoAtleta);
+router.get('/historial/atletas/:atletaId/objetivos', ...soloAdminEntrenador, getHistorialObjetivosAtleta);
+router.get('/historial/objetivos/:objetivoId/planificacion', ...soloAdminEntrenador, getHistorialPlanificacionObjetivo);
+router.get('/historial/atletas/:atletaId/feedback', ...soloAdminEntrenador, getHistorialFeedbackAtleta);
+router.get('/historial/feedback/:feedbackId', ...soloAdminEntrenador, getDetalleFeedback);
 
 export default router;

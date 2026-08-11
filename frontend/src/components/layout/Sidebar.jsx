@@ -1,8 +1,23 @@
 import logoCas from '../../assets/CAS_3.jpeg'
 import { useState } from 'react'
 
-function Sidebar({ activeModule = 'dashboard', onNavigate }) {
+// Menú por rol: cada rol solo ve los módulos que le corresponden.
+const MENU_POR_ROL = {
+  ADMIN: ['dashboard', 'atletas', 'administracion'],
+  ENTRENADOR: ['dashboard', 'atletas'],
+  ATLETA: ['dashboard'],
+}
+
+const LABEL_MODULO = {
+  dashboard: 'Dashboard',
+  atletas: 'Atletas',
+  administracion: 'Administración',
+}
+
+function Sidebar({ activeModule = 'dashboard', onNavigate, rol = 'ATLETA' }) {
   const [logoLoadError, setLogoLoadError] = useState(false)
+
+  const modulosVisibles = MENU_POR_ROL[rol] ?? MENU_POR_ROL.ATLETA
 
   return (
     <aside className="sidebar" aria-label="Navegacion principal">
@@ -31,29 +46,16 @@ function Sidebar({ activeModule = 'dashboard', onNavigate }) {
       </div>
 
       <nav className="menu" aria-label="Modulos de trabajo">
-        <button
-          className={`menu__item${activeModule === 'dashboard' ? ' menu__item--active' : ''}`}
-          type="button"
-          onClick={() => onNavigate?.('dashboard')}
-        >
-          Dashboard
-        </button>
-
-        <button
-          className={`menu__item${activeModule === 'atletas' ? ' menu__item--active' : ''}`}
-          type="button"
-          onClick={() => onNavigate?.('atletas')}
-        >
-          Atletas
-        </button>
-
-        <button
-          className={`menu__item${activeModule === 'administracion' ? ' menu__item--active' : ''}`}
-          type="button"
-          onClick={() => onNavigate?.('administracion')}
-        >
-          Administración
-        </button>
+        {modulosVisibles.map((modulo) => (
+          <button
+            key={modulo}
+            className={`menu__item${activeModule === modulo ? ' menu__item--active' : ''}`}
+            type="button"
+            onClick={() => onNavigate?.(modulo)}
+          >
+            {LABEL_MODULO[modulo]}
+          </button>
+        ))}
       </nav>
     </aside>
   )

@@ -28,5 +28,7 @@ export async function loginUser({ username, password }) {
   })
 
   const payload = await parseJsonResponse(response, 'No se pudo iniciar sesión')
-  return payload.data?.usuario
+  // El backend devuelve { token, usuario }; los combinamos en un único objeto.
+  const { token, usuario } = payload.data ?? {}
+  return { ...usuario, token }
 }

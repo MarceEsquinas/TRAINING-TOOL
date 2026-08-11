@@ -1,4 +1,4 @@
-import { API_BASE_URL } from './apiBaseUrl'
+import { API_BASE_URL, fetchWithAuth } from './apiBaseUrl'
 
 function mapNetworkError(error, fallbackMessage) {
   if (error instanceof TypeError) {
@@ -28,7 +28,7 @@ export async function fetchPlanificacion(atletaId) {
 
   let response
   try {
-    response = await fetch(`${API_BASE_URL}/planificacion/${atletaId}`)
+    response = await fetchWithAuth(`${API_BASE_URL}/planificacion/${atletaId}`)
   } catch (error) {
     throw mapNetworkError(error, 'No se pudo obtener la planificación del atleta')
   }
@@ -58,7 +58,7 @@ export async function fetchPropuestaNuevaSemana(atletaId) {
 
   let response
   try {
-    response = await fetch(`${API_BASE_URL}/planificacion/${atletaId}/semanas/propuesta`)
+    response = await fetchWithAuth(`${API_BASE_URL}/planificacion/${atletaId}/semanas/propuesta`)
   } catch (error) {
     throw mapNetworkError(error, 'No se pudo obtener la propuesta de nueva semana')
   }
@@ -96,7 +96,7 @@ export async function createSemanaPlanificacion(atletaId, fechaInicio) {
 
   let response
   try {
-    response = await fetch(`${API_BASE_URL}/planificacion/${atletaId}/semanas`, {
+    response = await fetchWithAuth(`${API_BASE_URL}/planificacion/${atletaId}/semanas`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -141,7 +141,7 @@ export async function createSesionPlanificacion(atletaId, semanaId, payload) {
 
   let response
   try {
-    response = await fetch(`${API_BASE_URL}/planificacion/${atletaId}/semanas/${semanaId}/sesiones`, {
+    response = await fetchWithAuth(`${API_BASE_URL}/planificacion/${atletaId}/semanas/${semanaId}/sesiones`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -190,7 +190,7 @@ export async function registrarResultadoSesionPlanificacion(atletaId, semanaId, 
 
   let response
   try {
-    response = await fetch(`${API_BASE_URL}/planificacion/${atletaId}/semanas/${semanaId}/sesiones/${sesionId}/resultado`, {
+    response = await fetchWithAuth(`${API_BASE_URL}/planificacion/${atletaId}/semanas/${semanaId}/sesiones/${sesionId}/resultado`, {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
@@ -235,7 +235,7 @@ export async function registrarMarcaObjetivoPlanificacion(atletaId, objetivoId, 
 
   let response
   try {
-    response = await fetch(`${API_BASE_URL}/planificacion/${atletaId}/objetivos/${objetivoId}/marca`, {
+    response = await fetchWithAuth(`${API_BASE_URL}/planificacion/${atletaId}/objetivos/${objetivoId}/marca`, {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',

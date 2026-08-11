@@ -125,6 +125,17 @@ Ver [docs/caso_de_uso_historial.md](docs/caso_de_uso_historial.md) para descripc
 4. Entrenador puede abrir detalle de feedback con GET /historial/feedback/:feedbackId
 5. Entrenador contrasta semanas realizadas para ajustar planificación
 
+### 4. Login de Usuario ✅ Completado
+Ver [docs/CU_05_login.md](docs/CU_05_login.md) para descripción completa.
+
+**Propósito**: permitir autenticación inicial por `username` y `password`, validando credenciales en backend con error controlado y sin revelar si el usuario existe.
+
+**Flujo resumido**:
+1. Usuario abre app y visualiza pantalla Login
+2. Frontend envía POST /auth/login con username y password
+3. Backend compara `password_hash` y responde credenciales válidas o inválidas
+4. Frontend guarda sesión básica local y habilita acceso al panel
+
 ---
 
 ## Documentación adicional
@@ -136,6 +147,13 @@ Ver [docs/caso_de_uso_historial.md](docs/caso_de_uso_historial.md) para descripc
 ---
 
 ## API REST Implementada
+
+### Endpoint de Autenticación
+
+#### POST /auth/login
+Valida credenciales de acceso usando `username` y `password`.
+
+**Regla**: ante usuario inexistente o contraseña incorrecta, responde con el mismo mensaje (`Credenciales inválidas`).
 
 ### Endpoints de Negocio
 

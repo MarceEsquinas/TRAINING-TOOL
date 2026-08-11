@@ -5,9 +5,31 @@ import Administracion from './page/administracion.jsx'
 import Planificacion from './page/planificacion.jsx'
 import Historial from './page/historial.jsx'
 import FeedbackDetalle from './page/feedbackDetalle.jsx'
+import Login from './page/login.jsx'
 import AppLayout from './layouts/appLayout.jsx'
 
+const AUTH_USER_STORAGE_KEY = 'tt_auth_user'
+
+function loadStoredAuthUser() {
+  try {
+    const raw = localStorage.getItem(AUTH_USER_STORAGE_KEY)
+    if (!raw) {
+      return null
+    }
+
+    const parsed = JSON.parse(raw)
+    if (!parsed?.id || !parsed?.username) {
+      return null
+    }
+
+    return parsed
+  } catch {
+    return null
+  }
+}
+
 function App() {
+  const [authUser, setAuthUser] = useState(() => loadStoredAuthUser())
   // Módulo activo del layout principal.
   const [activeModule, setActiveModule] = useState('dashboard')
   // Estado de navegación local del módulo Atletas.
@@ -83,6 +105,15 @@ function App() {
     setHeaderNotifications(Array.isArray(notifications) ? notifications : [])
   }
 
+  function handleLoginSuccess(usuario) {
+    setAuthUser(usuario)
+    localStorage.setItem(AUTH_USER_STORAGE_KEY, JSON.stringify(usuario))
+  }
+
+  if (!authUser) {
+    return <Login onLoginSuccess={handleLoginSuccess} />
+  }
+
   function renderMainContent() {
     if (activeModule === 'dashboard') {
       return (
@@ -137,8 +168,8 @@ function App() {
   return (
     <AppLayout
       headerProps={{
-        trainerName: 'Pepito García',
-        trainerRole: 'Entrenador',
+        trainerName: authUser.username,
+        trainerRole: authUser.rol || 'Usuario',
         trainerHint: 'Vista rápida del trabajo de hoy en el club',
         notificationCount: headerNotificationCount,
         notifications: headerNotifications,

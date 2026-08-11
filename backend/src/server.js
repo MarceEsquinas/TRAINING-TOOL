@@ -11,6 +11,7 @@ import dashboardRoute from './routes/negocio/dashboardRoute.js';
 import planificacionRoute from './routes/negocio/planificacionRoute.js';
 import historialAtletaRoute from './routes/negocio/historialAtletaRoute.js';
 import administracionRoute from './routes/negocio/administracionRoute.js';
+import authRoute from './routes/negocio/authRoute.js';
 
 const app = express();
 const PORT = 3000;
@@ -33,6 +34,7 @@ app.use('/', dashboardRoute);
 app.use('/', planificacionRoute);
 app.use('/', historialAtletaRoute);
 app.use('/', administracionRoute);
+app.use('/', authRoute);
 
 // Ruta básica existente
 app.get('/', (req, res) => {

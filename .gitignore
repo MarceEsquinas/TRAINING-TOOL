@@ -8,3 +8,11 @@ Thumbs.db
 
 # Frontend env
 frontend/.env
+
+# Seed credentials
+backend/.env.seed
+backend/.env.seed.example
+
+# Generic local env files
+.env
+.env.*

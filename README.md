@@ -155,6 +155,31 @@ Valida credenciales de acceso usando `username` y `password`.
 
 **Regla**: ante usuario inexistente o contraseña incorrecta, responde con el mismo mensaje (`Credenciales inválidas`).
 
+## Seed de administrador inicial
+
+Para crear el primer usuario `ADMIN` sin tocar la autenticación actual, sigue estos pasos:
+
+1. En la carpeta `backend`, crea un archivo `.env.seed` con tus credenciales locales:
+
+```env
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=ChangeMe123!
+```
+
+2. Ejecuta el seed:
+
+```bash
+cd backend
+npm run seed:admin
+```
+
+El script:
+- crea el usuario `ADMIN` solo si no existe ninguno ya con rol `ADMIN`
+- toma `ADMIN_USERNAME` y `ADMIN_PASSWORD` desde variables de entorno
+- convierte la contraseña a hash con la misma lógica usada por la app (`sha256`)
+- no modifica la lógica de login ni de autorización
+- ignora el archivo `.env.seed` para que no se suba al repositorio
+
 ### Endpoints de Negocio
 
 #### GET /dashboard

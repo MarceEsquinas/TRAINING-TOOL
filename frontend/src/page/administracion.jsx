@@ -18,7 +18,7 @@ function Administracion() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
 
-  const [nuevoEntrenador, setNuevoEntrenador] = useState({ nombre: '', correo: '', password: '' })
+  const [nuevoEntrenador, setNuevoEntrenador] = useState({ nombre: '', username: '', correo: '', password: '' })
   const [editEntrenadorById, setEditEntrenadorById] = useState({})
   const [editAtletaById, setEditAtletaById] = useState({})
   const [asignacionByAtletaId, setAsignacionByAtletaId] = useState({})
@@ -98,7 +98,7 @@ function Administracion() {
       setSuccess('')
       await createEntrenadorAdmin(nuevoEntrenador)
       setSuccess('Entrenador creado correctamente')
-      setNuevoEntrenador({ nombre: '', correo: '', password: '' })
+      setNuevoEntrenador({ nombre: '', username: '', correo: '', password: '' })
       await loadAdministracion()
     } catch (createError) {
       setError(createError.message || 'No se pudo crear el entrenador')
@@ -113,6 +113,7 @@ function Administracion() {
 
     return {
       nombre: entrenador.nombre || '',
+      username: entrenador.username || '',
       correo: entrenador.correo || '',
       passwordTemporal: '',
     }
@@ -126,6 +127,7 @@ function Administracion() {
       [entrenadorId]: {
         ...(prev[entrenadorId] || {
           nombre: entrenadorActual?.nombre || '',
+          username: entrenadorActual?.username || '',
           correo: entrenadorActual?.correo || '',
           passwordTemporal: '',
         }),
@@ -142,6 +144,7 @@ function Administracion() {
 
       const payload = {
         nombre: state.nombre,
+        username: state.username,
         correo: state.correo,
       }
 
@@ -331,6 +334,13 @@ function Administracion() {
               />
               <input
                 className="planificacion__row-input"
+                type="text"
+                placeholder="Username"
+                value={nuevoEntrenador.username}
+                onChange={(event) => handleNuevoEntrenadorChange('username', event.target.value)}
+              />
+              <input
+                className="planificacion__row-input"
                 type="email"
                 placeholder="Correo"
                 value={nuevoEntrenador.correo}
@@ -366,6 +376,13 @@ function Administracion() {
                           type="text"
                           value={editState.nombre}
                           onChange={(event) => handleEditEntrenadorField(entrenador.id, 'nombre', event.target.value)}
+                        />
+                        <input
+                          className="planificacion__row-input"
+                          type="text"
+                          placeholder="Username"
+                          value={editState.username}
+                          onChange={(event) => handleEditEntrenadorField(entrenador.id, 'username', event.target.value)}
                         />
                         <input
                           className="planificacion__row-input"

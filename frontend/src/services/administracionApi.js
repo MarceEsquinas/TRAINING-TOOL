@@ -29,10 +29,15 @@ export async function fetchEntrenadoresAdmin() {
 }
 
 export async function createEntrenadorAdmin(data) {
+  const body = {
+    ...(data || {}),
+    rol: 'ENTRENADOR',
+  }
+
   const response = await fetchWithAuth(`${API_BASE_URL}/entrenadores`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data || {}),
+    body: JSON.stringify(body),
   })
 
   const payload = await parseJsonResponse(response, 'No se pudo crear el entrenador')

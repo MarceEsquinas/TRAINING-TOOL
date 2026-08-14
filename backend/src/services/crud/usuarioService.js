@@ -7,18 +7,19 @@ function hashPassword(password) {
 }
 
 export async function listUsuarios() {
-  const result = await query('SELECT id, username, rol, created_at, updated_at FROM usuario ORDER BY id');
+  const result = await query('SELECT id, username, email, rol, created_at, updated_at FROM usuario ORDER BY id');
   return result.rows;
 }
 
 export async function findUsuarioById(id) {
-  const result = await query('SELECT id, username, rol, created_at, updated_at FROM usuario WHERE id = $1', [id]);
+  const result = await query('SELECT id, username, email, rol, created_at, updated_at FROM usuario WHERE id = $1', [id]);
   return result.rows[0] ?? null;
 }
 
 export async function createUsuario(payload) {
   const {
     username,
+    email,
     password,
     rol = 'ATLETA',
     nombre,
@@ -32,6 +33,10 @@ export async function createUsuario(payload) {
 
   if (!username || String(username).trim() === '') {
     throw new ServiceError(400, 'El username es requerido');
+  }
+
+  if (!email || String(email).trim() === '') {
+    throw new ServiceError(400, 'El email es requerido');
   }
 
   if (!password || String(password).trim().length < 6) {
@@ -65,8 +70,8 @@ export async function createUsuario(payload) {
 
     const passwordHash = hashPassword(password);
     const userResult = await client.query(
-      'INSERT INTO usuario (username, password_hash, rol) VALUES ($1, $2, $3) RETURNING id, username, rol, created_at, updated_at',
-      [String(username).trim(), passwordHash, rolUpper]
+      'INSERT INTO usuario (username, email, password_hash, rol) VALUES ($1, $2, $3, $4) RETURNING id, username, email, rol, created_at, updated_at',
+      [String(username).trim(), String(email).trim().toLowerCase(), passwordHash, rolUpper]
     );
 
     const usuarioCreado = userResult.rows[0];
@@ -107,7 +112,7 @@ export async function createUsuario(payload) {
 }
 
 export async function updateUsuario(id, payload) {
-  const { username, password, rol } = payload;
+  const { username, email, password, rol } = payload;
 
   const fields = [];
   const params = [];
@@ -119,6 +124,14 @@ export async function updateUsuario(id, payload) {
     }
     fields.push(`username = $${idx++}`);
     params.push(String(username).trim());
+  }
+
+  if (email !== undefined) {
+    if (email === null || String(email).trim() === '') {
+      throw new ServiceError(400, 'El email no puede estar vacío');
+    }
+    fields.push(`email = $${idx++}`);
+    params.push(String(email).trim().toLowerCase());
   }
 
   if (password !== undefined) {
@@ -145,7 +158,7 @@ export async function updateUsuario(id, payload) {
 
   try {
     params.push(id);
-    const sql = `UPDATE usuario SET ${fields.join(', ')}, updated_at = CURRENT_TIMESTAMP WHERE id = $${idx} RETURNING id, username, rol, created_at, updated_at`;
+    const sql = `UPDATE usuario SET ${fields.join(', ')}, updated_at = CURRENT_TIMESTAMP WHERE id = $${idx} RETURNING id, username, email, rol, created_at, updated_at`;
     const result = await query(sql, params);
 
     if (result.rows.length === 0) {
@@ -162,7 +175,7 @@ export async function updateUsuario(id, payload) {
 }
 
 export async function deleteUsuario(id) {
-  const result = await query('DELETE FROM usuario WHERE id = $1 RETURNING id, username, rol, created_at, updated_at', [id]);
+  const result = await query('DELETE FROM usuario WHERE id = $1 RETURNING id, username, email, rol, created_at, updated_at', [id]);
 
   if (result.rows.length === 0) {
     throw new ServiceError(404, `No se encontró usuario con id ${id}`);

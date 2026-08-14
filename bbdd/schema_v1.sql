@@ -10,7 +10,7 @@ CREATE EXTENSION IF NOT EXISTS btree_gist;
 -- ENUM TYPES
 -- ====================================================================
 
-CREATE TYPE rol_enum AS ENUM ('ADMIN', 'ATLETA');
+CREATE TYPE rol_enum AS ENUM ('ADMIN', 'ATLETA', 'ENTRENADOR');
 CREATE TYPE sexo_enum AS ENUM ('M', 'F', 'OTRO');
 
 -- ====================================================================
@@ -21,18 +21,21 @@ CREATE TYPE sexo_enum AS ENUM ('M', 'F', 'OTRO');
 CREATE TABLE usuario (
     id SERIAL PRIMARY KEY,
     username VARCHAR(50) UNIQUE NOT NULL,
+    email VARCHAR(150) UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
     rol rol_enum NOT NULL DEFAULT 'ATLETA',
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-COMMENT ON TABLE usuario IS 'Usuarios del sistema: administradores y atletas';
+COMMENT ON TABLE usuario IS 'Usuarios del sistema: identidad, autenticación y roles';
 COMMENT ON COLUMN usuario.username IS 'Nombre de usuario único para login';
+COMMENT ON COLUMN usuario.email IS 'Email único del usuario; usado para identidad y contacto';
 COMMENT ON COLUMN usuario.password_hash IS 'Hash de contraseña (bcrypt/argon2 en Node.js)';
-COMMENT ON COLUMN usuario.rol IS 'Rol: ADMIN o ATLETA';
+COMMENT ON COLUMN usuario.rol IS 'Rol: ADMIN, ATLETA o ENTRENADOR';
 
 CREATE INDEX idx_usuario_username ON usuario(username);
+CREATE INDEX idx_usuario_email ON usuario(email);
 
 -- ====================================================================
 -- TABLA: entrenadores
@@ -41,19 +44,19 @@ CREATE INDEX idx_usuario_username ON usuario(username);
 
 CREATE TABLE entrenadores (
     id SERIAL PRIMARY KEY,
+    usuario_id INTEGER UNIQUE,
     nombre VARCHAR(100) NOT NULL,
-    correo VARCHAR(150) UNIQUE NOT NULL,
-    password_hash VARCHAR(255) NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_entrenadores_usuario FOREIGN KEY (usuario_id)
+        REFERENCES usuario(id) ON DELETE SET NULL
 );
 
-COMMENT ON TABLE entrenadores IS 'Entrenadores del sistema responsables de la planificación';
+COMMENT ON TABLE entrenadores IS 'Perfil de negocio del entrenador vinculado a un usuario autenticado';
+COMMENT ON COLUMN entrenadores.usuario_id IS 'FK a usuario. Un entrenador siempre pertenece a un usuario y no puede repetirse';
 COMMENT ON COLUMN entrenadores.nombre IS 'Nombre completo del entrenador';
-COMMENT ON COLUMN entrenadores.correo IS 'Correo único para autenticación del entrenador';
-COMMENT ON COLUMN entrenadores.password_hash IS 'Hash de contraseña del entrenador (bcrypt/argon2)';
 
-CREATE INDEX idx_entrenador_correo ON entrenadores(correo);
+CREATE INDEX idx_entrenadores_usuario_id ON entrenadores(usuario_id);
 
 -- ====================================================================
 -- TABLA: atleta

@@ -10,59 +10,63 @@ CREATE EXTENSION IF NOT EXISTS btree_gist;
 -- ENUM TYPES
 -- ====================================================================
 
-CREATE TYPE rol_enum AS ENUM ('ADMIN', 'ATLETA');
+CREATE TYPE rol_enum AS ENUM ('ADMIN', 'ENTRENADOR', 'ATLETA');
 CREATE TYPE sexo_enum AS ENUM ('M', 'F', 'OTRO');
 
 -- ====================================================================
 -- TABLA: usuario
--- Descripción: Usuarios del sistema (admins y atletas)
+-- Descripción: Usuarios del sistema. Es la única identidad de acceso.
 -- ====================================================================
 
 CREATE TABLE usuario (
     id SERIAL PRIMARY KEY,
     username VARCHAR(50) UNIQUE NOT NULL,
+    email VARCHAR(150) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
     rol rol_enum NOT NULL DEFAULT 'ATLETA',
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-COMMENT ON TABLE usuario IS 'Usuarios del sistema: administradores y atletas';
-COMMENT ON COLUMN usuario.username IS 'Nombre de usuario único para login';
+COMMENT ON TABLE usuario IS 'Usuarios del sistema: administradores, entrenadores y atletas';
+COMMENT ON COLUMN usuario.username IS 'Nombre de usuario único para acceso a la aplicación';
+COMMENT ON COLUMN usuario.email IS 'Correo único del usuario para identificación y contacto';
 COMMENT ON COLUMN usuario.password_hash IS 'Hash de contraseña (bcrypt/argon2 en Node.js)';
-COMMENT ON COLUMN usuario.rol IS 'Rol: ADMIN o ATLETA';
+COMMENT ON COLUMN usuario.rol IS 'Rol único del usuario: ADMIN, ENTRENADOR o ATLETA';
 
 CREATE INDEX idx_usuario_username ON usuario(username);
+CREATE INDEX idx_usuario_email ON usuario(email);
 
 -- ====================================================================
 -- TABLA: entrenadores
--- Descripción: Entrenadores con acceso a planificar atletas
+-- Descripción: Perfil propio del entrenador. La identidad y permisos viven en usuario.
 -- ====================================================================
 
 CREATE TABLE entrenadores (
     id SERIAL PRIMARY KEY,
+    usuario_id INTEGER NOT NULL UNIQUE,
     nombre VARCHAR(100) NOT NULL,
-    correo VARCHAR(150) UNIQUE NOT NULL,
-    password_hash VARCHAR(255) NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_entrenador_usuario FOREIGN KEY (usuario_id)
+        REFERENCES usuario(id) ON DELETE CASCADE
 );
 
-COMMENT ON TABLE entrenadores IS 'Entrenadores del sistema responsables de la planificación';
+COMMENT ON TABLE entrenadores IS 'Perfil del entrenador asociado a un usuario';
+COMMENT ON COLUMN entrenadores.usuario_id IS 'FK obligatorio a usuario; un usuario solo puede tener un perfil de entrenador';
 COMMENT ON COLUMN entrenadores.nombre IS 'Nombre completo del entrenador';
-COMMENT ON COLUMN entrenadores.correo IS 'Correo único para autenticación del entrenador';
-COMMENT ON COLUMN entrenadores.password_hash IS 'Hash de contraseña del entrenador (bcrypt/argon2)';
 
-CREATE INDEX idx_entrenador_correo ON entrenadores(correo);
+CREATE INDEX idx_entrenador_usuario_id ON entrenadores(usuario_id);
 
 -- ====================================================================
 -- TABLA: atleta
--- Descripción: Perfil de atleta con información base, estadísticas y asignación de entrenador
+-- Descripción: Perfil propio del atleta. La identidad y permisos viven en usuario.
 -- ====================================================================
 
 CREATE TABLE atleta (
     id SERIAL PRIMARY KEY,
-    usuario_id INTEGER UNIQUE,
+    usuario_id INTEGER NOT NULL UNIQUE,
     entrenador_id INTEGER,
     nombre VARCHAR(100) NOT NULL,
     sexo sexo_enum,
@@ -72,16 +76,16 @@ CREATE TABLE atleta (
     lesiones_ultimo_anio JSONB DEFAULT '[]',
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    
-    CONSTRAINT fk_usuario FOREIGN KEY (usuario_id)
-        REFERENCES usuario(id) ON DELETE SET NULL,
-    CONSTRAINT fk_entrenador FOREIGN KEY (entrenador_id)
+
+    CONSTRAINT fk_atleta_usuario FOREIGN KEY (usuario_id)
+        REFERENCES usuario(id) ON DELETE CASCADE,
+    CONSTRAINT fk_atleta_entrenador FOREIGN KEY (entrenador_id)
         REFERENCES entrenadores(id) ON DELETE SET NULL
 );
 
-COMMENT ON TABLE atleta IS 'Perfil de atleta vinculado a usuario y entrenador';
-COMMENT ON COLUMN atleta.usuario_id IS 'FK a usuario (NULLABLE para admins sin perfil atleta)';
-COMMENT ON COLUMN atleta.entrenador_id IS 'FK a entrenador responsable de la planificación del atleta';
+COMMENT ON TABLE atleta IS 'Perfil del atleta vinculado a un usuario y, opcionalmente, a un entrenador';
+COMMENT ON COLUMN atleta.usuario_id IS 'FK obligatorio a usuario; un usuario solo puede tener un perfil de atleta';
+COMMENT ON COLUMN atleta.entrenador_id IS 'FK a entrenador responsable del atleta';
 COMMENT ON COLUMN atleta.nombre IS 'Nombre completo del atleta';
 COMMENT ON COLUMN atleta.sexo IS 'Sexo biológico';
 COMMENT ON COLUMN atleta.peso IS 'Peso en kg (no puede ser negativo)';
@@ -108,7 +112,7 @@ CREATE TABLE objetivo (
     activo BOOLEAN NOT NULL DEFAULT false,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    
+
     CONSTRAINT fk_atleta FOREIGN KEY (atleta_id)
         REFERENCES atleta(id) ON DELETE CASCADE
 );
@@ -125,14 +129,14 @@ CREATE INDEX idx_objetivo_atleta_id ON objetivo(atleta_id);
 CREATE INDEX idx_objetivo_distancia_objetivo ON objetivo(distancia_objetivo);
 
 -- Constraint: Un solo objetivo activo por atleta
-CREATE UNIQUE INDEX idx_objetivo_activo_por_atleta 
-    ON objetivo(atleta_id) 
+CREATE UNIQUE INDEX idx_objetivo_activo_por_atleta
+    ON objetivo(atleta_id)
     WHERE activo = true;
 
 -- ====================================================================
 -- TABLA: semana_entrenamiento
 -- Descripción: Semanas de entrenamiento del objetivo
--- Reglas: 
+-- Reglas:
 --   - Una semana puede no tener sesiones (vacaciones, recuperación)
 --   - No se pueden solapar fechas del mismo objetivo
 -- ====================================================================
@@ -144,13 +148,13 @@ CREATE TABLE semana_entrenamiento (
     fecha_fin DATE NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    
+
     CONSTRAINT fk_objetivo FOREIGN KEY (objetivo_id)
         REFERENCES objetivo(id) ON DELETE CASCADE,
-    
+
     -- Validación básica: fecha_fin >= fecha_inicio
     CONSTRAINT fecha_valida CHECK (fecha_fin >= fecha_inicio),
-    
+
     -- No se solapan semanas del mismo objetivo
     CONSTRAINT no_solapamiento_fechas EXCLUDE USING gist (
         objetivo_id WITH =,
@@ -162,7 +166,7 @@ COMMENT ON TABLE semana_entrenamiento IS 'Semanas de entrenamiento (pueden estar
 COMMENT ON COLUMN semana_entrenamiento.objetivo_id IS 'FK a objetivo (cascade delete)';
 COMMENT ON COLUMN semana_entrenamiento.fecha_inicio IS 'Fecha inicio de la semana (lunes típicamente)';
 COMMENT ON COLUMN semana_entrenamiento.fecha_fin IS 'Fecha fin de la semana (domingo típicamente)';
-COMMENT ON CONSTRAINT no_solapamiento_fechas ON semana_entrenamiento 
+COMMENT ON CONSTRAINT no_solapamiento_fechas ON semana_entrenamiento
     IS 'EXCLUDE constraint: no se solapan semanas del mismo objetivo';
 
 CREATE INDEX idx_semana_objetivo_id ON semana_entrenamiento(objetivo_id);
@@ -187,7 +191,7 @@ CREATE TABLE sesion_entrenamiento (
     registrado_por VARCHAR(100),
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    
+
     CONSTRAINT fk_semana FOREIGN KEY (semana_id)
         REFERENCES semana_entrenamiento(id) ON DELETE CASCADE,
     CONSTRAINT orden_unico_por_semana UNIQUE (semana_id, orden)
@@ -228,13 +232,13 @@ CREATE TABLE feedback_semanal (
     ritmo_rodaje TEXT,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    
+
     CONSTRAINT fk_semana FOREIGN KEY (semana_id)
         REFERENCES semana_entrenamiento(id) ON DELETE CASCADE,
-    
+
     -- Lógica: si no está completada, debe tener motivo
     CONSTRAINT motivo_requerido CHECK (
-        (completada = true) OR 
+        (completada = true) OR
         (completada = false AND motivo_no_completada IS NOT NULL)
     )
 );
@@ -267,7 +271,7 @@ CREATE INDEX idx_semana_objetivo_fecha ON semana_entrenamiento(objetivo_id, fech
 
 -- Vista: Obtener objetivo activo por atleta
 CREATE OR REPLACE VIEW v_objetivo_activo AS
-SELECT 
+SELECT
     a.id as atleta_id,
     a.nombre as atleta_nombre,
     o.id as objetivo_id,
@@ -277,7 +281,7 @@ SELECT
 FROM atleta a
 LEFT JOIN objetivo o ON a.id = o.atleta_id AND o.activo = true;
 
-COMMENT ON VIEW v_objetivo_activo IS 
+COMMENT ON VIEW v_objetivo_activo IS
     'Vista para obtener rápidamente el objetivo activo de cada atleta';
 
 -- ====================================================================
@@ -294,63 +298,67 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Aplicar trigger a todas las tablas
-CREATE TRIGGER trg_usuario_updated_at 
+CREATE TRIGGER trg_usuario_updated_at
     BEFORE UPDATE ON usuario
-    FOR EACH ROW 
+    FOR EACH ROW
     EXECUTE FUNCTION actualizar_updated_at();
 
-CREATE TRIGGER trg_atleta_updated_at 
+CREATE TRIGGER trg_entrenador_updated_at
+    BEFORE UPDATE ON entrenadores
+    FOR EACH ROW
+    EXECUTE FUNCTION actualizar_updated_at();
+
+CREATE TRIGGER trg_atleta_updated_at
     BEFORE UPDATE ON atleta
-    FOR EACH ROW 
+    FOR EACH ROW
     EXECUTE FUNCTION actualizar_updated_at();
 
-CREATE TRIGGER trg_objetivo_updated_at 
+CREATE TRIGGER trg_objetivo_updated_at
     BEFORE UPDATE ON objetivo
-    FOR EACH ROW 
+    FOR EACH ROW
     EXECUTE FUNCTION actualizar_updated_at();
 
-CREATE TRIGGER trg_semana_updated_at 
+CREATE TRIGGER trg_semana_updated_at
     BEFORE UPDATE ON semana_entrenamiento
-    FOR EACH ROW 
+    FOR EACH ROW
     EXECUTE FUNCTION actualizar_updated_at();
 
-CREATE TRIGGER trg_sesion_updated_at 
+CREATE TRIGGER trg_sesion_updated_at
     BEFORE UPDATE ON sesion_entrenamiento
-    FOR EACH ROW 
+    FOR EACH ROW
     EXECUTE FUNCTION actualizar_updated_at();
 
-CREATE TRIGGER trg_feedback_updated_at 
+CREATE TRIGGER trg_feedback_updated_at
     BEFORE UPDATE ON feedback_semanal
-    FOR EACH ROW 
+    FOR EACH ROW
     EXECUTE FUNCTION actualizar_updated_at();
 
 -- ====================================================================
 -- SEED DATA OPCIONAL (Para desarrollo)
 -- ====================================================================
 
--- Descomenta para insertar datos de prueba:
-
 /*
 -- Usuario admin
-INSERT INTO usuario (username, password_hash, rol) 
-VALUES ('admin', '$2b$12$...', 'ADMIN');
+INSERT INTO usuario (username, email, password_hash, rol)
+VALUES ('admin', 'admin@club.test', '$2b$12$...', 'ADMIN');
 
 -- Usuario entrenador
-INSERT INTO usuario (username, password_hash, rol)
-VALUES ('coach.pepe', '$2b$12$...', 'ADMIN');
+INSERT INTO usuario (username, email, password_hash, rol)
+VALUES ('coach.pepe', 'coach.pepe@club.test', '$2b$12$...', 'ENTRENADOR');
 
 -- Entrenador
-INSERT INTO entrenadores (nombre, correo, password_hash)
-VALUES ('Pepito García', 'coach.pepe@club.test', '$2b$12$...');
+INSERT INTO entrenadores (usuario_id, nombre)
+VALUES (2, 'Pepito García');
 
 -- Usuario atleta
-INSERT INTO usuario (username, password_hash, rol)
-VALUES ('juan', '$2b$12$...', 'ATLETA');
+INSERT INTO usuario (username, email, password_hash, rol)
+VALUES ('juan', 'juan@club.test', '$2b$12$...', 'ATLETA');
 
 -- Atleta
-INSERT INTO atleta (usuario_id, nombre, sexo, peso, dias_disponibles, km_medios_ultimos_2_meses)
+INSERT INTO atleta (usuario_id, entrenador_id, nombre, sexo, peso, dias_disponibles, km_medios_ultimos_2_meses)
 VALUES (
     3,
+    1,
     'Juan Pérez',
     'M',
     75.50,
@@ -368,7 +376,7 @@ VALUES (1, '2026-06-02', '2026-06-08');
 
 -- Sesiones
 INSERT INTO sesion_entrenamiento (semana_id, orden, fecha_sesion, descripcion, observaciones, kilometros_planificados)
-VALUES 
+VALUES
     (1, '1', '2026-06-02', '60 minutos Z2', 'Rodaje muy suave', 12.5),
     (1, '2', '2026-06-04', '20 cal + 6x1000 + 10 enfr', 'Recuperar 2 minutos entre series', 14.0),
     (1, '3', '2026-06-06', '30 km suave', 'No superar zona 2', 30.0),
@@ -378,10 +386,3 @@ VALUES
 INSERT INTO feedback_semanal (semana_id, completada, sensaciones, molestias)
 VALUES (1, true, 'Me sentí bien, con energía', 'Ligera molestia en rodilla derecha');
 */
-
--- ====================================================================
--- FIN DEL SCRIPT
--- ====================================================================
-
-COMMENT ON SCHEMA public IS 'Schema de Training Tool V1';
-

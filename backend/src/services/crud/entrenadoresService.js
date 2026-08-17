@@ -1,16 +1,40 @@
-import crypto from 'crypto';
 import { query } from '../../config/db.js';
 import { ServiceError } from '../serviceError.js';
 
-function hashPassword(password) {
-  return crypto.createHash('sha256').update(String(password)).digest('hex');
+async function assertUsuarioEntrenadorValido(usuarioId, excludeId = null) {
+  if (!usuarioId || Number.isNaN(Number(usuarioId))) {
+    throw new ServiceError(400, 'El usuario_id del entrenador debe ser un número válido');
+  }
+
+  const userResult = await query(
+    'SELECT id, rol FROM usuario WHERE id = $1',
+    [usuarioId]
+  );
+
+  if (userResult.rows.length === 0) {
+    throw new ServiceError(404, `No se encontró usuario con id ${usuarioId}`);
+  }
+
+  if (userResult.rows[0].rol !== 'ENTRENADOR') {
+    throw new ServiceError(409, 'El usuario asociado debe tener rol ENTRENADOR');
+  }
+
+  const perfilResult = await query(
+    'SELECT id FROM entrenadores WHERE usuario_id = $1 AND id <> COALESCE($2, -1)',
+    [usuarioId, excludeId]
+  );
+
+  if (perfilResult.rows.length > 0) {
+    throw new ServiceError(409, 'Ese usuario ya tiene un perfil de entrenador asociado');
+  }
 }
 
 export async function listEntrenadores() {
   const result = await query(
-    `SELECT id, nombre, correo, created_at, updated_at
-     FROM entrenadores
-     ORDER BY id`
+    `SELECT e.id, e.usuario_id, e.nombre, u.username, u.email, u.rol, e.created_at, e.updated_at
+     FROM entrenadores e
+     INNER JOIN usuario u ON u.id = e.usuario_id
+     ORDER BY e.id`
   );
 
   return result.rows;
@@ -18,52 +42,49 @@ export async function listEntrenadores() {
 
 export async function findEntrenadorById(id) {
   const result = await query(
-    `SELECT id, nombre, correo, created_at, updated_at
-     FROM entrenadores
-     WHERE id = $1`,
+    `SELECT e.id, e.usuario_id, e.nombre, u.username, u.email, u.rol, e.created_at, e.updated_at
+     FROM entrenadores e
+     INNER JOIN usuario u ON u.id = e.usuario_id
+     WHERE e.id = $1`,
     [id]
   );
 
   return result.rows[0] ?? null;
 }
 
-export async function createEntrenador(payload) {
-  const { nombre, correo, password } = payload ?? {};
+export async function createEntrenador(payload = {}) {
+  const { nombre, usuario_id } = payload;
 
   if (!nombre || String(nombre).trim() === '') {
     throw new ServiceError(400, 'El nombre del entrenador es requerido');
   }
 
-  if (!correo || String(correo).trim() === '') {
-    throw new ServiceError(400, 'El correo del entrenador es requerido');
+  if (!usuario_id || Number.isNaN(Number(usuario_id))) {
+    throw new ServiceError(400, 'El usuario_id del entrenador es requerido');
   }
 
-  if (!password || String(password).trim().length < 6) {
-    throw new ServiceError(400, 'La contraseña es requerida y debe tener al menos 6 caracteres');
-  }
-
-  const params = [String(nombre).trim(), String(correo).trim().toLowerCase(), hashPassword(password)];
+  await assertUsuarioEntrenadorValido(usuario_id);
 
   try {
     const result = await query(
-      `INSERT INTO entrenadores (nombre, correo, password_hash)
-       VALUES ($1, $2, $3)
-       RETURNING id, nombre, correo, created_at, updated_at`,
-      params
+      `INSERT INTO entrenadores (usuario_id, nombre)
+       VALUES ($1, $2)
+       RETURNING id, usuario_id, nombre, created_at, updated_at`,
+      [Number(usuario_id), String(nombre).trim()]
     );
 
     return result.rows[0];
   } catch (error) {
     if (error.code === '23505') {
-      throw new ServiceError(409, 'Ya existe un entrenador con ese correo');
+      throw new ServiceError(409, 'Ese usuario ya tiene un perfil de entrenador asociado');
     }
 
     throw error;
   }
 }
 
-export async function updateEntrenador(id, payload) {
-  const { nombre, correo, password } = payload ?? {};
+export async function updateEntrenador(id, payload = {}) {
+  const { nombre, usuario_id } = payload;
 
   const fields = [];
   const params = [];
@@ -77,34 +98,33 @@ export async function updateEntrenador(id, payload) {
     params.push(String(nombre).trim());
   }
 
-  if (correo !== undefined) {
-    if (correo === null || String(correo).trim() === '') {
-      throw new ServiceError(400, 'El correo del entrenador no puede estar vacío');
+  if (usuario_id !== undefined) {
+    if (usuario_id === null || Number.isNaN(Number(usuario_id))) {
+      throw new ServiceError(400, 'El usuario_id del entrenador debe ser un número válido');
     }
-    fields.push(`correo = $${idx++}`);
-    params.push(String(correo).trim().toLowerCase());
-  }
-
-  if (password !== undefined) {
-    if (password === null || String(password).trim().length < 6) {
-      throw new ServiceError(400, 'La contraseña debe tener al menos 6 caracteres');
-    }
-    fields.push(`password_hash = $${idx++}`);
-    params.push(hashPassword(password));
+    fields.push(`usuario_id = $${idx++}`);
+    params.push(Number(usuario_id));
   }
 
   if (fields.length === 0) {
     throw new ServiceError(400, 'No hay campos para actualizar');
   }
 
-  params.push(id);
-
   try {
+    const existing = await query('SELECT usuario_id FROM entrenadores WHERE id = $1', [id]);
+    if (existing.rows.length === 0) {
+      throw new ServiceError(404, `No se encontró entrenador con id ${id}`);
+    }
+
+    const nextUsuarioId = usuario_id !== undefined ? Number(usuario_id) : existing.rows[0].usuario_id;
+    await assertUsuarioEntrenadorValido(nextUsuarioId, id);
+
+    params.push(id);
     const result = await query(
       `UPDATE entrenadores
        SET ${fields.join(', ')}, updated_at = CURRENT_TIMESTAMP
        WHERE id = $${idx}
-       RETURNING id, nombre, correo, created_at, updated_at`,
+       RETURNING id, usuario_id, nombre, created_at, updated_at`,
       params
     );
 
@@ -114,10 +134,12 @@ export async function updateEntrenador(id, payload) {
 
     return result.rows[0];
   } catch (error) {
-    if (error.code === '23505') {
-      throw new ServiceError(409, 'Ya existe un entrenador con ese correo');
+    if (error instanceof ServiceError) {
+      throw error;
     }
-
+    if (error.code === '23505') {
+      throw new ServiceError(409, 'Ese usuario ya tiene un perfil de entrenador asociado');
+    }
     throw error;
   }
 }

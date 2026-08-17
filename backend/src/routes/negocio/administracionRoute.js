@@ -5,9 +5,17 @@ import {
   postReasignacionAtleta,
   putAtletaAdministracion,
   postResetPasswordTemporalAtleta,
+  postCrearEntrenador,
+  putActualizarEntrenador,
+  putActualizarPasswordEntrenador,
 } from '../../controllers/negocio/administracionController.js';
 
 const router = express.Router();
+
+// Administración - Entrenadores
+router.post('/administracion/entrenadores', postCrearEntrenador);
+router.put('/administracion/entrenadores/:entrenadorId', putActualizarEntrenador);
+router.put('/administracion/entrenadores/:entrenadorId/password', putActualizarPasswordEntrenador);
 
 // Administración - Atletas
 router.get('/administracion/atletas', getAdministracionAtletas);

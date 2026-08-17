@@ -29,10 +29,17 @@ export async function fetchEntrenadoresAdmin() {
 }
 
 export async function createEntrenadorAdmin(data) {
-  const response = await fetch(`${API_BASE_URL}/entrenadores`, {
+  const payloadRequest = {
+    username: data?.username ?? data?.usuario ?? '',
+    email: data?.email ?? data?.correo ?? '',
+    password: data?.password ?? data?.contrasena ?? '',
+    nombre: data?.nombre ?? '',
+  }
+
+  const response = await fetch(`${API_BASE_URL}/administracion/entrenadores`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data || {}),
+    body: JSON.stringify(payloadRequest),
   })
 
   const payload = await parseJsonResponse(response, 'No se pudo crear el entrenador')
@@ -40,7 +47,7 @@ export async function createEntrenadorAdmin(data) {
 }
 
 export async function updateEntrenadorAdmin(entrenadorId, data) {
-  const response = await fetch(`${API_BASE_URL}/entrenadores/${entrenadorId}`, {
+  const response = await fetch(`${API_BASE_URL}/administracion/entrenadores/${entrenadorId}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data || {}),
@@ -51,13 +58,13 @@ export async function updateEntrenadorAdmin(entrenadorId, data) {
 }
 
 export async function resetPasswordTemporalEntrenadorAdmin(entrenadorId, nuevaPassword) {
-  const response = await fetch(`${API_BASE_URL}/entrenadores/${entrenadorId}`, {
+  const response = await fetch(`${API_BASE_URL}/administracion/entrenadores/${entrenadorId}/password`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ password: nuevaPassword }),
+    body: JSON.stringify({ nueva_password: nuevaPassword }),
   })
 
-  const payload = await parseJsonResponse(response, 'No se pudo resetear la contraseña del entrenador')
+  const payload = await parseJsonResponse(response, 'No se pudo actualizar la contraseña del entrenador')
   return payload.data
 }
 

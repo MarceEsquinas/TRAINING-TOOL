@@ -6,10 +6,90 @@ import {
   resetearPasswordTemporalAtletaData,
   getAdministracionUsuariosData,
   resetearPasswordTemporalUsuarioData,
+  crearEntrenadorConUsuarioData,
+  actualizarEntrenadorConUsuarioData,
+  actualizarPasswordEntrenadorData,
 } from '../../services/negocio/administracionService.js';
 import { ServiceError } from '../../services/serviceError.js';
 
 // Capa HTTP: traduce request/response sin mover reglas de negocio al controlador.
+export async function postCrearEntrenador(req, res) {
+  try {
+    const data = await crearEntrenadorConUsuarioData(req.body ?? {});
+
+    return res.status(201).json({
+      success: true,
+      message: 'Entrenador creado correctamente',
+      data,
+    });
+  } catch (error) {
+    if (error instanceof ServiceError) {
+      return res.status(error.status).json({ success: false, message: error.message });
+    }
+
+    console.error('Error al crear entrenador desde administración:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Error al crear entrenador desde administración',
+      error: error.message,
+    });
+  }
+}
+
+export async function putActualizarEntrenador(req, res) {
+  try {
+    const { entrenadorId } = req.params;
+    const data = await actualizarEntrenadorConUsuarioData({
+      entrenadorId,
+      payload: req.body ?? {},
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: 'Entrenador actualizado correctamente',
+      data,
+    });
+  } catch (error) {
+    if (error instanceof ServiceError) {
+      return res.status(error.status).json({ success: false, message: error.message });
+    }
+
+    console.error('Error al actualizar entrenador desde administración:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Error al actualizar entrenador desde administración',
+      error: error.message,
+    });
+  }
+}
+
+export async function putActualizarPasswordEntrenador(req, res) {
+  try {
+    const { entrenadorId } = req.params;
+    const data = await actualizarPasswordEntrenadorData({
+      entrenadorId,
+      nuevaPassword: req.body?.nueva_password,
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: 'Contraseña del entrenador actualizada correctamente',
+      data,
+    });
+  } catch (error) {
+    if (error instanceof ServiceError) {
+      return res.status(error.status).json({ success: false, message: error.message });
+    }
+
+    console.error('Error al actualizar contraseña del entrenador:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Error al actualizar contraseña del entrenador',
+      error: error.message,
+    });
+  }
+}
+
 export async function getAdministracionAtletas(req, res) {
   try {
     const result = await getAdministracionAtletasData({ estado: req.query.estado });

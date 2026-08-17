@@ -18,7 +18,7 @@ function Administracion() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
 
-  const [nuevoEntrenador, setNuevoEntrenador] = useState({ nombre: '', correo: '', password: '' })
+  const [nuevoEntrenador, setNuevoEntrenador] = useState({ username: '', nombre: '', email: '', password: '' })
   const [editEntrenadorById, setEditEntrenadorById] = useState({})
   const [editAtletaById, setEditAtletaById] = useState({})
   const [asignacionByAtletaId, setAsignacionByAtletaId] = useState({})
@@ -98,7 +98,7 @@ function Administracion() {
       setSuccess('')
       await createEntrenadorAdmin(nuevoEntrenador)
       setSuccess('Entrenador creado correctamente')
-      setNuevoEntrenador({ nombre: '', correo: '', password: '' })
+      setNuevoEntrenador({ username: '', nombre: '', email: '', password: '' })
       await loadAdministracion()
     } catch (createError) {
       setError(createError.message || 'No se pudo crear el entrenador')
@@ -112,8 +112,9 @@ function Administracion() {
     }
 
     return {
+      username: entrenador.username || '',
+      email: entrenador.email || '',
       nombre: entrenador.nombre || '',
-      correo: entrenador.correo || '',
       passwordTemporal: '',
     }
   }
@@ -125,8 +126,9 @@ function Administracion() {
       ...prev,
       [entrenadorId]: {
         ...(prev[entrenadorId] || {
+          username: entrenadorActual?.username || '',
+          email: entrenadorActual?.email || '',
           nombre: entrenadorActual?.nombre || '',
-          correo: entrenadorActual?.correo || '',
           passwordTemporal: '',
         }),
         [field]: value,
@@ -141,8 +143,9 @@ function Administracion() {
       setSuccess('')
 
       const payload = {
+        username: state.username,
+        email: state.email,
         nombre: state.nombre,
-        correo: state.correo,
       }
 
       await updateEntrenadorAdmin(entrenador.id, payload)
@@ -153,12 +156,12 @@ function Administracion() {
     }
   }
 
-  async function handleResetPasswordEntrenador(entrenador) {
+  async function handleActualizarPasswordEntrenador(entrenador) {
     const state = getEditEntrenadorState(entrenador)
     const nuevaPassword = state.passwordTemporal
 
     if (!nuevaPassword || String(nuevaPassword).trim() === '') {
-      setError('Debes indicar una contraseña temporal para el entrenador')
+      setError('Debes indicar una nueva contraseña para el entrenador')
       return
     }
 
@@ -166,7 +169,7 @@ function Administracion() {
       setError('')
       setSuccess('')
       await resetPasswordTemporalEntrenadorAdmin(entrenador.id, String(nuevaPassword).trim())
-      setSuccess(`Contraseña temporal actualizada para el entrenador ${entrenador.nombre}`)
+      setSuccess(`Contraseña actualizada para el entrenador ${entrenador.nombre}`)
       setEditEntrenadorById((prev) => ({
         ...prev,
         [entrenador.id]: {
@@ -176,7 +179,7 @@ function Administracion() {
       }))
       await loadAdministracion()
     } catch (resetError) {
-      setError(resetError.message || 'No se pudo resetear la contraseña del entrenador')
+      setError(resetError.message || 'No se pudo actualizar la contraseña del entrenador')
     }
   }
 
@@ -325,6 +328,13 @@ function Administracion() {
               <input
                 className="planificacion__row-input"
                 type="text"
+                placeholder="Username"
+                value={nuevoEntrenador.username}
+                onChange={(event) => handleNuevoEntrenadorChange('username', event.target.value)}
+              />
+              <input
+                className="planificacion__row-input"
+                type="text"
                 placeholder="Nombre"
                 value={nuevoEntrenador.nombre}
                 onChange={(event) => handleNuevoEntrenadorChange('nombre', event.target.value)}
@@ -332,9 +342,9 @@ function Administracion() {
               <input
                 className="planificacion__row-input"
                 type="email"
-                placeholder="Correo"
-                value={nuevoEntrenador.correo}
-                onChange={(event) => handleNuevoEntrenadorChange('correo', event.target.value)}
+                placeholder="Email"
+                value={nuevoEntrenador.email}
+                onChange={(event) => handleNuevoEntrenadorChange('email', event.target.value)}
               />
               <input
                 className="planificacion__row-input"
@@ -364,27 +374,36 @@ function Administracion() {
                         <input
                           className="planificacion__row-input"
                           type="text"
-                          value={editState.nombre}
-                          onChange={(event) => handleEditEntrenadorField(entrenador.id, 'nombre', event.target.value)}
+                          placeholder="Username"
+                          value={editState.username}
+                          onChange={(event) => handleEditEntrenadorField(entrenador.id, 'username', event.target.value)}
                         />
                         <input
                           className="planificacion__row-input"
                           type="email"
-                          value={editState.correo}
-                          onChange={(event) => handleEditEntrenadorField(entrenador.id, 'correo', event.target.value)}
+                          placeholder="Email"
+                          value={editState.email}
+                          onChange={(event) => handleEditEntrenadorField(entrenador.id, 'email', event.target.value)}
                         />
                         <input
                           className="planificacion__row-input"
+                          type="text"
+                          placeholder="Nombre"
+                          value={editState.nombre}
+                          onChange={(event) => handleEditEntrenadorField(entrenador.id, 'nombre', event.target.value)}
+                        />
+                        <button className="plan-button" type="button" onClick={() => handleGuardarEntrenador(entrenador)}>
+                          Modificar entrenador
+                        </button>
+                        <input
+                          className="planificacion__row-input"
                           type="password"
-                          placeholder="Nueva contraseña temporal"
+                          placeholder="Nueva contraseña"
                           value={editState.passwordTemporal}
                           onChange={(event) => handleEditEntrenadorField(entrenador.id, 'passwordTemporal', event.target.value)}
                         />
-                        <button className="plan-button" type="button" onClick={() => handleGuardarEntrenador(entrenador)}>
-                          Guardar
-                        </button>
-                        <button className="plan-button" type="button" onClick={() => handleResetPasswordEntrenador(entrenador)}>
-                          Resetear contraseña
+                        <button className="plan-button" type="button" onClick={() => handleActualizarPasswordEntrenador(entrenador)}>
+                          Actualizar contraseña
                         </button>
                       </div>
                     </details>

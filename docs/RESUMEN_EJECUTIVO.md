@@ -50,6 +50,19 @@ Sistema de gestión de entrenamientos para 4-50 atletas. Diseño simple, escalab
 - Partial index para objetivos activos: espacio mínimo
 - Rango de fechas: reportes rápidos
 
+### 8. **Creación y edición de entrenadores con usuario + perfil**
+- **Cambio**: la creación de un entrenador ya no se realiza directamente sobre la tabla `entrenadores`.
+- **Regla de negocio**: primero se crea el usuario con rol `ENTRENADOR` y luego se crea el perfil del entrenador usando el `usuario_id` generado.
+- **Por qué**: mantiene una relación correcta entre usuario y entrenador y evita perfiles huérfanos o IDs manuales.
+- **Implementación**: la operación se hace en backend como una única transacción para garantizar consistencia.
+- **Resultado**: si falla alguna parte, la operación completa se revierte y no queda información a medias.
+
+### 9. **Modificación del entrenador y actualización de contraseña**
+- **Cambio**: desde administración se puede actualizar `username`, `email` y `nombre` del entrenador usando el `usuario_id` del perfil asociado.
+- **Regla**: no se permite cambiar `id_usuario`, `role`, `usuario_id` ni `password` desde la edición del perfil.
+- **Contraseña**: existe una acción específica para actualizar solo el `password_hash` del usuario vinculado.
+- **Por qué**: cada dato sigue en su tabla correcta sin duplicar información ni mezclar responsabilidades.
+
 ---
 
 ## 📊 Estructura Final de Tablas

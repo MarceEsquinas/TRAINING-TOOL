@@ -1,5 +1,6 @@
 import crypto from 'crypto';
-import { query } from '../../config/db.js';
+import pool, { query } from '../../config/db.js';
+import { createUsuario, updateUsuario } from '../crud/usuarioService.js';
 import { ServiceError } from '../serviceError.js';
 
 // Seguridad mínima de V1: nunca persistir contraseñas en texto plano.
@@ -35,6 +36,209 @@ async function getAtletaByIdForAdmin(atletaId) {
   }
 
   return result.rows[0];
+}
+
+export async function crearEntrenadorConUsuarioData({ username, email, password, nombre }) {
+  const cleanUsername = String(username ?? '').trim();
+  const cleanEmail = String(email ?? '').trim().toLowerCase();
+  const cleanPassword = String(password ?? '');
+  const cleanNombre = String(nombre ?? '').trim();
+
+  if (!cleanUsername) {
+    throw new ServiceError(400, 'El username es requerido');
+  }
+
+  if (!cleanEmail) {
+    throw new ServiceError(400, 'El email es requerido');
+  }
+
+  if (cleanPassword.length < 6) {
+    throw new ServiceError(400, 'La contraseña es requerida y debe tener al menos 6 caracteres');
+  }
+
+  if (!cleanNombre) {
+    throw new ServiceError(400, 'El nombre del entrenador es requerido');
+  }
+
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    const usuarioCreado = await createUsuario(
+      {
+        username: cleanUsername,
+        email: cleanEmail,
+        password: cleanPassword,
+        rol: 'ENTRENADOR',
+      },
+      client
+    );
+
+    const entrenadorResult = await client.query(
+      `INSERT INTO entrenadores (usuario_id, nombre)
+       VALUES ($1, $2)
+       RETURNING id, usuario_id, nombre, created_at, updated_at`,
+      [usuarioCreado.id, cleanNombre]
+    );
+
+    await client.query('COMMIT');
+
+    return {
+      usuario: usuarioCreado,
+      entrenador: entrenadorResult.rows[0],
+    };
+  } catch (error) {
+    await client.query('ROLLBACK');
+
+    if (error instanceof ServiceError) {
+      throw error;
+    }
+
+    if (error.code === '23505') {
+      throw new ServiceError(409, 'Ya existe un usuario o perfil de entrenador con esos datos');
+    }
+
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+export async function actualizarEntrenadorConUsuarioData({ entrenadorId, payload = {} }) {
+  validateNumericId(entrenadorId, 'entrenadorId');
+
+  const { username, email, nombre } = payload ?? {};
+  const userFields = {};
+  const trainerFields = {};
+
+  if (username !== undefined) {
+    const cleanUsername = String(username ?? '').trim();
+    if (!cleanUsername) {
+      throw new ServiceError(400, 'El username no puede estar vacío');
+    }
+    userFields.username = cleanUsername;
+  }
+
+  if (email !== undefined) {
+    const cleanEmail = String(email ?? '').trim().toLowerCase();
+    if (!cleanEmail) {
+      throw new ServiceError(400, 'El email no puede estar vacío');
+    }
+    userFields.email = cleanEmail;
+  }
+
+  if (nombre !== undefined) {
+    const cleanNombre = String(nombre ?? '').trim();
+    if (!cleanNombre) {
+      throw new ServiceError(400, 'El nombre del entrenador no puede estar vacío');
+    }
+    trainerFields.nombre = cleanNombre;
+  }
+
+  if (Object.keys(userFields).length === 0 && Object.keys(trainerFields).length === 0) {
+    throw new ServiceError(400, 'No hay campos para actualizar');
+  }
+
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    const entrenadorResult = await client.query(
+      `SELECT e.id, e.usuario_id, e.nombre, u.username, u.email
+       FROM entrenadores e
+       INNER JOIN usuario u ON u.id = e.usuario_id
+       WHERE e.id = $1`,
+      [entrenadorId]
+    );
+
+    if (entrenadorResult.rows.length === 0) {
+      throw new ServiceError(404, `No se encontró entrenador con id ${entrenadorId}`);
+    }
+
+    const { usuario_id } = entrenadorResult.rows[0];
+
+    if (Object.keys(userFields).length > 0) {
+      await updateUsuario(usuario_id, userFields, client);
+    }
+
+    let entrenadorActualizado = entrenadorResult.rows[0];
+    if (Object.keys(trainerFields).length > 0) {
+      const updateResult = await client.query(
+        `UPDATE entrenadores
+         SET nombre = $1, updated_at = CURRENT_TIMESTAMP
+         WHERE id = $2
+         RETURNING id, usuario_id, nombre, created_at, updated_at`,
+        [trainerFields.nombre, entrenadorId]
+      );
+      entrenadorActualizado = updateResult.rows[0];
+    }
+
+    await client.query('COMMIT');
+
+    return {
+      usuario_id,
+      entrenador: entrenadorActualizado,
+    };
+  } catch (error) {
+    await client.query('ROLLBACK');
+
+    if (error instanceof ServiceError) {
+      throw error;
+    }
+
+    if (error.code === '23505') {
+      throw new ServiceError(409, 'El username o email ya existen');
+    }
+
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+export async function actualizarPasswordEntrenadorData({ entrenadorId, nuevaPassword }) {
+  validateNumericId(entrenadorId, 'entrenadorId');
+
+  if (!nuevaPassword || String(nuevaPassword).trim().length < 6) {
+    throw new ServiceError(400, 'La contraseña debe tener al menos 6 caracteres');
+  }
+
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    const entrenadorResult = await client.query(
+      'SELECT usuario_id FROM entrenadores WHERE id = $1',
+      [entrenadorId]
+    );
+
+    if (entrenadorResult.rows.length === 0) {
+      throw new ServiceError(404, `No se encontró entrenador con id ${entrenadorId}`);
+    }
+
+    const { usuario_id } = entrenadorResult.rows[0];
+    const usuarioActualizado = await updateUsuario(usuario_id, { password: nuevaPassword }, client);
+
+    await client.query('COMMIT');
+
+    return {
+      usuario_id,
+      usuario: usuarioActualizado,
+    };
+  } catch (error) {
+    await client.query('ROLLBACK');
+
+    if (error instanceof ServiceError) {
+      throw error;
+    }
+
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
 export async function getAdministracionAtletasData({ estado }) {

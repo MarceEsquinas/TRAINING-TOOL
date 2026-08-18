@@ -36,11 +36,7 @@ export async function findUsuarioById(id) {
   return result.rows[0] ?? null;
 }
 
-<<<<<<< HEAD
-export async function createUsuario(payload = {}) {
-=======
 export async function createUsuario(payload = {}, client = null) {
->>>>>>> 2294e64 (modifico las tablas para evitar duplicados)
   const { username, email, password, rol = 'ATLETA' } = payload;
 
   const cleanUsername = String(username ?? '').trim();
@@ -59,13 +55,9 @@ export async function createUsuario(payload = {}, client = null) {
     throw new ServiceError(400, 'La contraseña es requerida y debe tener al menos 6 caracteres');
   }
 
-<<<<<<< HEAD
-  const existingUser = await query(
-=======
   const dbQuery = client ? client.query.bind(client) : query;
 
   const existingUser = await dbQuery(
->>>>>>> 2294e64 (modifico las tablas para evitar duplicados)
     'SELECT id FROM usuario WHERE username = $1 OR email = $2 LIMIT 1',
     [cleanUsername, cleanEmail]
   );
@@ -76,11 +68,7 @@ export async function createUsuario(payload = {}, client = null) {
 
   try {
     const passwordHash = hashPassword(password);
-<<<<<<< HEAD
-    const result = await query(
-=======
     const result = await dbQuery(
->>>>>>> 2294e64 (modifico las tablas para evitar duplicados)
       'INSERT INTO usuario (username, email, password_hash, rol) VALUES ($1, $2, $3, $4) RETURNING id, username, email, rol, created_at, updated_at',
       [cleanUsername, cleanEmail, passwordHash, rolUpper]
     );
@@ -93,11 +81,7 @@ export async function createUsuario(payload = {}, client = null) {
   }
 }
 
-<<<<<<< HEAD
-export async function updateUsuario(id, payload = {}) {
-=======
 export async function updateUsuario(id, payload = {}, client = null) {
->>>>>>> 2294e64 (modifico las tablas para evitar duplicados)
   const { username, email, password, rol } = payload;
 
   const fields = [];
@@ -143,12 +127,8 @@ export async function updateUsuario(id, payload = {}, client = null) {
   try {
     params.push(id);
     const sql = `UPDATE usuario SET ${fields.join(', ')}, updated_at = CURRENT_TIMESTAMP WHERE id = $${idx} RETURNING id, username, email, rol, created_at, updated_at`;
-<<<<<<< HEAD
-    const result = await query(sql, params);
-=======
     const dbQuery = client ? client.query.bind(client) : query;
     const result = await dbQuery(sql, params);
->>>>>>> 2294e64 (modifico las tablas para evitar duplicados)
 
     if (result.rows.length === 0) {
       throw new ServiceError(404, `No se encontró usuario con id ${id}`);

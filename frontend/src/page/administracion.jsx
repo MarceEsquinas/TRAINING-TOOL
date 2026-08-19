@@ -235,6 +235,8 @@ function Administracion() {
     }
 
     return {
+      username: atleta.username || '',
+      email: atleta.email || '',
       nombre: atleta.nombre || '',
       sexo: atleta.sexo || '',
       peso: atleta.peso ?? '',
@@ -249,6 +251,8 @@ function Administracion() {
       ...prev,
       [atletaId]: {
         ...(prev[atletaId] || {
+          username: atletaActual?.username || '',
+          email: atletaActual?.email || '',
           nombre: atletaActual?.nombre || '',
           sexo: atletaActual?.sexo || '',
           peso: atletaActual?.peso ?? '',
@@ -267,6 +271,8 @@ function Administracion() {
       setSuccess('')
 
       const payload = {
+        username: state.username,
+        email: state.email,
         nombre: state.nombre,
         sexo: state.sexo || null,
         peso: state.peso === '' ? null : Number(state.peso),
@@ -421,23 +427,41 @@ function Administracion() {
               {atletas.map((atleta) => {
                 const editState = getEditAtletaState(atleta)
                 const esPendiente = atleta.entrenador_id === null
+                const objetivoActivo = Boolean(atleta.objetivo_activo)
 
                 return (
                   <li className="admin-list__item" key={atleta.id}>
                     <details className="admin-accordion-item">
                       <summary className="admin-accordion-item__summary">
                         <span>{atleta.nombre}</span>
-                        <span className="module-note">{esPendiente ? 'Pendiente' : 'Asignado'}</span>
+                        <span className="module-note">{esPendiente ? 'Sin entrenador' : 'Con entrenador'}</span>
                       </summary>
 
                       <div className="admin-accordion-item__content">
-                        <span className="module-note">
-                          Entrenador actual: {atleta.entrenador_nombre || 'Pendiente'}
-                        </span>
+                        <span className="module-note">Username: {atleta.username || '—'}</span>
+                        <span className="module-note">Email: {atleta.email || '—'}</span>
+                        <span className="module-note">Entrenador: {atleta.entrenador_nombre || 'Pendiente de asignación'}</span>
+                        <span className="module-note">Estado: {esPendiente ? 'Sin entrenador' : 'Asignado'}</span>
+                        <span className="module-note">Objetivo activo: {objetivoActivo ? 'Sí' : 'No'}</span>
 
                         <input
                           className="planificacion__row-input"
                           type="text"
+                          placeholder="Username"
+                          value={editState.username}
+                          onChange={(event) => handleEditAtletaField(atleta.id, 'username', event.target.value)}
+                        />
+                        <input
+                          className="planificacion__row-input"
+                          type="email"
+                          placeholder="Email"
+                          value={editState.email}
+                          onChange={(event) => handleEditAtletaField(atleta.id, 'email', event.target.value)}
+                        />
+                        <input
+                          className="planificacion__row-input"
+                          type="text"
+                          placeholder="Nombre"
                           value={editState.nombre}
                           onChange={(event) => handleEditAtletaField(atleta.id, 'nombre', event.target.value)}
                         />
@@ -461,7 +485,7 @@ function Administracion() {
                           onChange={(event) => handleEditAtletaField(atleta.id, 'peso', event.target.value)}
                         />
                         <button className="plan-button" type="button" onClick={() => handleGuardarAtleta(atleta)}>
-                          Guardar atleta
+                          Modificar
                         </button>
 
                         <select
@@ -479,18 +503,18 @@ function Administracion() {
                           type="button"
                           onClick={() => (esPendiente ? handleAsignarPendiente(atleta.id) : handleReasignar(atleta.id))}
                         >
-                          {esPendiente ? 'Asignar' : 'Reasignar'}
+                          {esPendiente ? 'Asignar entrenador' : 'Cambiar entrenador'}
                         </button>
 
                         <input
                           className="planificacion__row-input"
                           type="password"
-                          placeholder="Nueva contraseña temporal"
+                          placeholder="Nueva contraseña"
                           value={editState.passwordTemporal}
                           onChange={(event) => handleEditAtletaField(atleta.id, 'passwordTemporal', event.target.value)}
                         />
                         <button className="plan-button" type="button" onClick={() => handleResetPasswordAtleta(atleta)}>
-                          Resetear contraseña
+                          Actualizar contraseña
                         </button>
                       </div>
                     </details>

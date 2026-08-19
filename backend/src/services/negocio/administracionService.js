@@ -254,11 +254,17 @@ export async function getAdministracionAtletasData({ estado }) {
       a.entrenador_id,
       a.sexo,
       a.peso,
+      u.username,
+      u.email,
       e.nombre AS entrenador_nombre,
+      CASE WHEN o.activo = true THEN true ELSE false END AS objetivo_activo,
+      o.nombre AS objetivo_nombre,
       a.created_at,
       a.updated_at
     FROM atleta a
-    LEFT JOIN entrenadores e ON e.id = a.entrenador_id`;
+    INNER JOIN usuario u ON u.id = a.usuario_id
+    LEFT JOIN entrenadores e ON e.id = a.entrenador_id
+    LEFT JOIN objetivo o ON o.atleta_id = a.id AND o.activo = true`;
 
   if (onlyPendientes) {
     sql += '\nWHERE a.entrenador_id IS NULL';
@@ -276,17 +282,34 @@ export async function getAdministracionAtletasData({ estado }) {
 export async function updateAtletaAdministracionData({ atletaId, payload }) {
   validateNumericId(atletaId, 'atletaId');
 
-  const { nombre, sexo, peso } = payload ?? {};
-  const fields = [];
-  const params = [];
+  const { username, email, nombre, sexo, peso } = payload ?? {};
+  const userFields = {};
+  const athleteFields = [];
+  const athleteParams = [];
   let idx = 1;
+
+  if (username !== undefined) {
+    const cleanUsername = String(username ?? '').trim();
+    if (!cleanUsername) {
+      throw new ServiceError(400, 'El username no puede estar vacío');
+    }
+    userFields.username = cleanUsername;
+  }
+
+  if (email !== undefined) {
+    const cleanEmail = String(email ?? '').trim().toLowerCase();
+    if (!cleanEmail) {
+      throw new ServiceError(400, 'El email no puede estar vacío');
+    }
+    userFields.email = cleanEmail;
+  }
 
   if (nombre !== undefined) {
     if (nombre === null || String(nombre).trim() === '') {
       throw new ServiceError(400, 'El nombre del atleta no puede estar vacío');
     }
-    fields.push(`nombre = $${idx++}`);
-    params.push(String(nombre).trim());
+    athleteFields.push(`nombre = $${idx++}`);
+    athleteParams.push(String(nombre).trim());
   }
 
   if (sexo !== undefined) {
@@ -296,46 +319,85 @@ export async function updateAtletaAdministracionData({ atletaId, payload }) {
       if (!sexosValidos.includes(sexoUpper)) {
         throw new ServiceError(400, 'El sexo debe ser M, F u OTRO');
       }
-      fields.push(`sexo = $${idx++}`);
-      params.push(sexoUpper);
+      athleteFields.push(`sexo = $${idx++}`);
+      athleteParams.push(sexoUpper);
     } else {
-      fields.push(`sexo = $${idx++}`);
-      params.push(null);
+      athleteFields.push(`sexo = $${idx++}`);
+      athleteParams.push(null);
     }
   }
 
   if (peso !== undefined) {
     if (peso === null || peso === '') {
-      fields.push(`peso = $${idx++}`);
-      params.push(null);
+      athleteFields.push(`peso = $${idx++}`);
+      athleteParams.push(null);
     } else {
       const pesoNumerico = Number(peso);
       if (!Number.isFinite(pesoNumerico) || pesoNumerico <= 0) {
         throw new ServiceError(400, 'El peso debe ser un número mayor a 0');
       }
-      fields.push(`peso = $${idx++}`);
-      params.push(pesoNumerico);
+      athleteFields.push(`peso = $${idx++}`);
+      athleteParams.push(pesoNumerico);
     }
   }
 
-  if (fields.length === 0) {
-    throw new ServiceError(400, 'No hay campos de atleta para actualizar');
+  if (Object.keys(userFields).length === 0 && athleteFields.length === 0) {
+    throw new ServiceError(400, 'No hay campos para actualizar');
   }
 
-  params.push(atletaId);
-  const result = await query(
-    `UPDATE atleta
-     SET ${fields.join(', ')}, updated_at = CURRENT_TIMESTAMP
-     WHERE id = $${idx}
-     RETURNING *`,
-    params
-  );
+  const client = await pool.connect();
 
-  if (result.rows.length === 0) {
-    throw new ServiceError(404, `No se encontró atleta con id ${atletaId}`);
+  try {
+    await client.query('BEGIN');
+
+    const atletaResult = await client.query(
+      `SELECT a.id, a.usuario_id
+       FROM atleta a
+       WHERE a.id = $1`,
+      [atletaId]
+    );
+
+    if (atletaResult.rows.length === 0) {
+      throw new ServiceError(404, `No se encontró atleta con id ${atletaId}`);
+    }
+
+    const { usuario_id } = atletaResult.rows[0];
+
+    if (Object.keys(userFields).length > 0) {
+      await updateUsuario(usuario_id, userFields, client);
+    }
+
+    if (athleteFields.length > 0) {
+      athleteParams.push(atletaId);
+      const result = await client.query(
+        `UPDATE atleta
+         SET ${athleteFields.join(', ')}, updated_at = CURRENT_TIMESTAMP
+         WHERE id = $${idx}
+         RETURNING *`,
+        athleteParams
+      );
+
+      await client.query('COMMIT');
+      return result.rows[0];
+    }
+
+    await client.query('COMMIT');
+    return atletaResult.rows[0];
+  } catch (error) {
+    await client.query('ROLLBACK');
+
+    if (error instanceof ServiceError) {
+      throw error;
+    }
+
+    if (error.code === '23505') {
+      throw new ServiceError(409, 'El username o email ya existen');
+    }
+
+    throw error;
+  } finally {
+    client.release();
   }
-
-  return result.rows[0];
 }
 
 export async function autoasignarAtletaPendienteData({ atletaId, entrenadorId }) {

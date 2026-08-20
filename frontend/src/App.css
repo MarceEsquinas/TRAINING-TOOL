@@ -989,6 +989,62 @@
   width: 100%;
 }
 
+.planificacion__weeks-list {
+  list-style: none;
+  margin: 14px 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.planificacion__week-chip {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 190px;
+  text-align: left;
+  border: 1px solid #e6dfc7;
+  background: #fffdf8;
+  color: #232323;
+  font: inherit;
+  border-radius: 12px;
+  padding: 10px 14px;
+  cursor: pointer;
+}
+
+.planificacion__week-chip-status {
+  font-weight: 700;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: #6d623f;
+}
+
+.planificacion__week-chip--actual {
+  border-color: #2f8f4e;
+  background: #eafbf0;
+}
+
+.planificacion__week-chip--actual .planificacion__week-chip-status {
+  color: #1f6d38;
+}
+
+.planificacion__week-chip--proxima {
+  border-color: #6aa0d8;
+  background: #eaf3fc;
+}
+
+.planificacion__week-chip--selected {
+  outline: 2px solid #232323;
+  outline-offset: 1px;
+}
+
+.planificacion__card--feedback-placeholder {
+  border-style: dashed;
+  color: #6d623f;
+}
+
 .historial {
   min-height: 100vh;
   padding: 28px;

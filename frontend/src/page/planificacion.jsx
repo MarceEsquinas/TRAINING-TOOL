@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
   fetchPlanificacion,
+  fetchSemanasObjetivo,
+  fetchSesionesDeSemana,
   fetchPropuestaNuevaSemana,
   createSemanaPlanificacion,
   createSesionPlanificacion,
@@ -15,6 +17,27 @@ function addDaysToIsoDate(isoDate, days) {
   if (Number.isNaN(date.getTime())) return ''
   date.setUTCDate(date.getUTCDate() + days)
   return date.toISOString().slice(0, 10)
+}
+
+// Etiquetas legibles para los días de la semana guardados en atleta.dias_disponibles.
+const ETIQUETA_DIA_SEMANA = {
+  lunes: 'Lunes',
+  martes: 'Martes',
+  miercoles: 'Miércoles',
+  jueves: 'Jueves',
+  viernes: 'Viernes',
+  sabado: 'Sábado',
+  domingo: 'Domingo',
+}
+
+function formatDiasDisponibles(diasDisponibles) {
+  if (!Array.isArray(diasDisponibles) || diasDisponibles.length === 0) {
+    return 'Sin días configurados'
+  }
+
+  return diasDisponibles
+    .map((dia) => ETIQUETA_DIA_SEMANA[String(dia).toLowerCase()] || dia)
+    .join(', ')
 }
 
 function Planificacion({ atletaId, onBack }) {
@@ -49,6 +72,29 @@ function Planificacion({ atletaId, onBack }) {
   const [marcaRegistradaPendienteConfirmacion, setMarcaRegistradaPendienteConfirmacion] = useState(false)
   const [marcaFinalizadaInfo, setMarcaFinalizadaInfo] = useState('')
 
+  // Listado de semanas del objetivo activo (actual, próxima y anteriores) para la sección
+  // 'Semanas de entrenamiento'. Es independiente del estado de carga principal porque
+  // se refresca de forma puntual tras crear semanas/sesiones o registrar resultados.
+  const [semanasObjetivo, setSemanasObjetivo] = useState([])
+  const [semanasError, setSemanasError] = useState('')
+
+  // null = se está viendo la semana de contexto (actual o próxima) resuelta por el backend.
+  // Con un id distinto, se está consultando el historial de otra semana del objetivo.
+  const [semanaSeleccionadaId, setSemanaSeleccionadaId] = useState(null)
+  const [sesionesSemanaSeleccionada, setSesionesSemanaSeleccionada] = useState([])
+  const [cargandoSesionesSemana, setCargandoSesionesSemana] = useState(false)
+  const [errorSesionesSemana, setErrorSesionesSemana] = useState('')
+
+  async function loadSemanasObjetivo() {
+    try {
+      setSemanasError('')
+      const data = await fetchSemanasObjetivo(atletaId)
+      setSemanasObjetivo(data?.semanas || [])
+    } catch (loadSemanasError) {
+      setSemanasError(loadSemanasError.message || 'No se pudieron cargar las semanas del objetivo')
+    }
+  }
+
   async function loadPlanificacion() {
     setLoading(true)
     setError('')
@@ -57,6 +103,9 @@ function Planificacion({ atletaId, onBack }) {
       setPlanificacionData(data)
       setResultadosEdicion({})
       setMarcaConseguidaInput(data?.objetivo?.marca_conseguida || '')
+      setSemanaSeleccionadaId(null)
+      setSesionesSemanaSeleccionada([])
+      await loadSemanasObjetivo()
     } catch (loadError) {
       setError(loadError.message || 'Error al cargar la planificación')
     } finally {
@@ -81,6 +130,13 @@ function Planificacion({ atletaId, onBack }) {
           setMarcaError('')
           setMarcaSuccess('')
           setMarcaFinalizadaInfo('')
+          setSemanaSeleccionadaId(null)
+          setSesionesSemanaSeleccionada([])
+        }
+
+        const semanasData = await fetchSemanasObjetivo(atletaId).catch(() => null)
+        if (isMounted && semanasData) {
+          setSemanasObjetivo(semanasData.semanas || [])
         }
       } catch (loadError) {
         if (isMounted) {
@@ -105,9 +161,55 @@ function Planificacion({ atletaId, onBack }) {
   const objetivo = useMemo(() => planificacionData?.objetivo || null, [planificacionData])
   const semana = useMemo(() => planificacionData?.semana || null, [planificacionData])
   const sesiones = useMemo(() => planificacionData?.sesiones || [], [planificacionData])
+
+  // La semana "de contexto" es la actual o próxima que resuelve el backend por defecto
+  // (menor número de pasos para el entrenador). Si el entrenador selecciona otra semana
+  // del listado, se consulta y muestra exclusivamente esa semana, sin perder el contexto.
+  const esSemanaContexto = semanaSeleccionadaId === null || semanaSeleccionadaId === semana?.id
+  const semanaMostrada = useMemo(() => {
+    if (esSemanaContexto) {
+      return semana
+    }
+    return semanasObjetivo.find((item) => item.id === semanaSeleccionadaId) || null
+  }, [esSemanaContexto, semana, semanasObjetivo, semanaSeleccionadaId])
+  const sesionesMostradas = esSemanaContexto ? sesiones : sesionesSemanaSeleccionada
+
+  async function handleSelectSemana(semanaId) {
+    if (semanaId === semana?.id) {
+      setSemanaSeleccionadaId(null)
+      setSesionesSemanaSeleccionada([])
+      setErrorSesionesSemana('')
+      return
+    }
+
+    setSemanaSeleccionadaId(semanaId)
+    setErrorSesionesSemana('')
+    setCargandoSesionesSemana(true)
+    try {
+      const data = await fetchSesionesDeSemana(semanaId)
+      setSesionesSemanaSeleccionada(data)
+    } catch (selectError) {
+      setErrorSesionesSemana(selectError.message || 'No se pudieron cargar las sesiones de la semana')
+      setSesionesSemanaSeleccionada([])
+    } finally {
+      setCargandoSesionesSemana(false)
+    }
+  }
+
+  // Recarga las sesiones que están visibles en pantalla (contexto o semana seleccionada)
+  // tras crear/editar una sesión, sin perder la semana que el entrenador está consultando.
+  async function refreshSesionesVisibles() {
+    if (esSemanaContexto) {
+      await loadPlanificacion()
+    } else {
+      await Promise.all([handleSelectSemana(semanaSeleccionadaId), loadSemanasObjetivo()])
+    }
+  }
+
   const objetivoEnDiaDeCompeticion = useMemo(() => {
     return Number(objetivo?.dias_hasta_objetivo) <= 0
   }, [objetivo?.dias_hasta_objetivo])
+
 
   const objetivoPendienteDeMarca = useMemo(() => {
     if (!objetivo || !objetivoEnDiaDeCompeticion) {
@@ -206,6 +308,11 @@ function Planificacion({ atletaId, onBack }) {
       return
     }
 
+    if (!esSemanaContexto) {
+      setSesionError('Solo se pueden crear sesiones en la semana actual o próxima')
+      return
+    }
+
     if (!sesionDescripcion.trim()) {
       setSesionError('La descripción es obligatoria')
       return
@@ -284,7 +391,7 @@ function Planificacion({ atletaId, onBack }) {
   }
 
   async function handleGuardarResultadoSesion(sesion) {
-    if (!semana?.id) {
+    if (!semanaMostrada?.id) {
       setResultadoError('Debes seleccionar una semana válida')
       return
     }
@@ -309,9 +416,9 @@ function Planificacion({ atletaId, onBack }) {
       setSavingResultadoId(sesion.id)
       setResultadoError('')
       setResultadoSuccess('')
-      await registrarResultadoSesionPlanificacion(atletaId, semana.id, sesion.id, payload)
+      await registrarResultadoSesionPlanificacion(atletaId, semanaMostrada.id, sesion.id, payload)
       setResultadoSuccess(`Resultado de sesión ${sesion.orden || sesion.id} guardado`)
-      await loadPlanificacion()
+      await refreshSesionesVisibles()
     } catch (saveError) {
       setResultadoError(saveError.message || 'No se pudo guardar el resultado de la sesión')
     } finally {
@@ -473,7 +580,7 @@ function Planificacion({ atletaId, onBack }) {
           )}
 
           <article className={`planificacion__card${objetivoEnDiaDeCompeticion ? ' planificacion__card--objetivo-vencido' : ''}`}>
-            <h3>Contexto actual</h3>
+            <h3>Contexto del atleta</h3>
             <div className="planificacion__grid">
               <div>
                 <span className="field-label">Atleta</span>
@@ -490,6 +597,10 @@ function Planificacion({ atletaId, onBack }) {
               <div>
                 <span className="field-label">Días restantes</span>
                 <strong>{objetivo?.dias_hasta_objetivo ?? '-'}</strong>
+              </div>
+              <div>
+                <span className="field-label">Días disponibles del atleta</span>
+                <strong>{formatDiasDisponibles(atleta?.dias_disponibles)}</strong>
               </div>
               <div>
                 <span className="field-label">Marca conseguida</span>
@@ -553,40 +664,87 @@ function Planificacion({ atletaId, onBack }) {
           </article>
 
           <article className="planificacion__card">
-            <h3>Semana seleccionada</h3>
-            {!semana && <p>No hay semana actual ni próxima para este atleta.</p>}
-            {semana && (
+            <h3>Semanas de entrenamiento</h3>
+            <p className="planificacion__hint">
+              La semana actual queda destacada. Las anteriores forman parte del historial de planificación del objetivo.
+            </p>
+
+            {semanasError && <p>{semanasError}</p>}
+            {!semanasError && semanasObjetivo.length === 0 && (
+              <p>Todavía no hay semanas creadas para este objetivo.</p>
+            )}
+
+            {semanasObjetivo.length > 0 && (
+              <ul className="planificacion__weeks-list" role="list">
+                {semanasObjetivo.map((item) => {
+                  const estaSeleccionada = item.id === (semanaSeleccionadaId ?? semana?.id)
+                  const estadoClave = item.es_actual ? 'actual' : item.es_proxima ? 'proxima' : 'anterior'
+                  const etiquetaEstado = item.es_actual ? 'Actual' : item.es_proxima ? 'Próxima' : 'Anterior'
+
+                  return (
+                    <li key={item.id}>
+                      <button
+                        type="button"
+                        className={`planificacion__week-chip planificacion__week-chip--${estadoClave}${estaSeleccionada ? ' planificacion__week-chip--selected' : ''}`}
+                        onClick={() => handleSelectSemana(item.id)}
+                      >
+                        <span className="planificacion__week-chip-status">{etiquetaEstado}</span>
+                        <span>{formatDate(item.fecha_inicio)} – {formatDate(item.fecha_fin)}</span>
+                        <span>{item.km_realizados_semana} / {item.km_planificados_semana} km</span>
+                        <span>{item.total_sesiones} sesiones</span>
+                      </button>
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+          </article>
+
+          <article className="planificacion__card">
+            <h3>{esSemanaContexto ? 'Semana actual / próxima' : 'Semana consultada (historial)'}</h3>
+            {!semanaMostrada && <p>No hay semana actual ni próxima para este atleta.</p>}
+            {cargandoSesionesSemana && <p>Cargando sesiones de la semana...</p>}
+            {errorSesionesSemana && <p>{errorSesionesSemana}</p>}
+            {semanaMostrada && (
               <div className="planificacion__grid">
                 <div>
                   <span className="field-label">Inicio</span>
-                  <strong>{formatDate(semana.fecha_inicio)}</strong>
+                  <strong>{formatDate(semanaMostrada.fecha_inicio)}</strong>
                 </div>
                 <div>
                   <span className="field-label">Fin</span>
-                  <strong>{formatDate(semana.fecha_fin)}</strong>
+                  <strong>{formatDate(semanaMostrada.fecha_fin)}</strong>
                 </div>
                 <div>
                   <span className="field-label">Kilómetros semanales</span>
                   <strong>
-                    {semana.km_realizados_semana} / {semana.km_planificados_semana} km
+                    {semanaMostrada.km_realizados_semana} / {semanaMostrada.km_planificados_semana} km
                   </strong>
                 </div>
                 <div>
                   <span className="field-label">Total sesiones</span>
-                  <strong>{semana.total_sesiones}</strong>
+                  <strong>{semanaMostrada.total_sesiones}</strong>
                 </div>
+              </div>
+            )}
+            {!esSemanaContexto && semanaMostrada && (
+              <div className="planificacion__actions planificacion__actions--top">
+                <button className="planificacion__back" type="button" onClick={() => handleSelectSemana(semana?.id)}>
+                  Volver a la semana actual/próxima
+                </button>
               </div>
             )}
           </article>
 
           <article className="planificacion__card">
             <div className="planificacion__sessions-head">
-              <h3>Sesiones de la semana</h3>
+              <h3>Sesiones de la semana {esSemanaContexto ? '' : '(historial)'}</h3>
               <button
                 className="planificacion__back"
                 type="button"
                 onClick={handleOpenCreateSesion}
-                disabled={!semana || creatingSesion}
+                disabled={!semana || !esSemanaContexto || creatingSesion}
+                title={!esSemanaContexto ? 'Solo se pueden crear sesiones en la semana actual o próxima' : undefined}
               >
                 Crear sesión
               </button>
@@ -638,7 +796,7 @@ function Planificacion({ atletaId, onBack }) {
                     className="planificacion__back"
                     type="button"
                     onClick={handleCreateSesion}
-                    disabled={creatingSesion || !semana}
+                    disabled={creatingSesion || !semana || !esSemanaContexto}
                   >
                     {creatingSesion ? 'Creando sesión...' : 'Guardar sesión'}
                   </button>
@@ -654,9 +812,11 @@ function Planificacion({ atletaId, onBack }) {
               </div>
             )}
 
-            {sesiones.length === 0 && <p>Esta semana todavía no tiene sesiones planificadas.</p>}
+            {sesionesMostradas.length === 0 && !cargandoSesionesSemana && (
+              <p>Esta semana todavía no tiene sesiones planificadas.</p>
+            )}
 
-            {sesiones.length > 0 && (
+            {sesionesMostradas.length > 0 && (
               <ul className="planificacion__sessions-list" role="list">
                 <li className="planificacion__session-item planificacion__session-item--header" aria-hidden="true">
                   <span>Orden</span>
@@ -667,7 +827,7 @@ function Planificacion({ atletaId, onBack }) {
                   <span>Km realizados</span>
                   <span>Acción</span>
                 </li>
-                {sesiones.map((sesion) => (
+                {sesionesMostradas.map((sesion) => (
                   <li key={sesion.id} className="planificacion__session-item">
                     <strong>{sesion.orden || '-'}</strong>
                     <span>{sesion.descripcion || '-'}</span>
@@ -708,6 +868,15 @@ function Planificacion({ atletaId, onBack }) {
 
             {resultadoError && <p>{resultadoError}</p>}
             {resultadoSuccess && <p className="planificacion__success">{resultadoSuccess}</p>}
+          </article>
+
+          <article className="planificacion__card planificacion__card--feedback-placeholder">
+            <h3>Feedback</h3>
+            <p className="planificacion__hint">
+              Próximamente: el atleta podrá enviar feedback de la semana actual y el entrenador
+              podrá consultarlo aquí, asociado a la semana/sesión correspondiente. Esta sección
+              queda preparada en la interfaz sin implementar todavía la funcionalidad completa.
+            </p>
           </article>
         </section>
       )}

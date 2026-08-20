@@ -1,6 +1,7 @@
 import express from 'express';
 import {
 	getPlanificacionAtleta,
+	getSemanasObjetivoActivo,
 	getPropuestaNuevaSemana,
 	createSemanaDesdePlanificacion,
 	createSesionSemanaDesdePlanificacion,
@@ -13,6 +14,7 @@ const router = express.Router();
 // Rutas de negocio de planificación.
 router.get('/planificacion/:atletaId', getPlanificacionAtleta);
 router.get('/planificacion/:atletaId/semanas/propuesta', getPropuestaNuevaSemana);
+router.get('/planificacion/:atletaId/semanas', getSemanasObjetivoActivo);
 router.post('/planificacion/:atletaId/semanas', createSemanaDesdePlanificacion);
 router.post('/planificacion/:atletaId/semanas/:semanaId/sesiones', createSesionSemanaDesdePlanificacion);
 router.patch('/planificacion/:atletaId/semanas/:semanaId/sesiones/:sesionId/resultado', registrarResultadoSesionDesdePlanificacion);

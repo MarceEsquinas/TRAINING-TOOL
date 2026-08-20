@@ -224,6 +224,71 @@ export async function registrarResultadoSesionPlanificacion(atletaId, semanaId, 
   return data.data
 }
 
+// Obtiene el listado de semanas del objetivo activo del atleta (actual, próxima y anteriores).
+// Cada semana llega con los km ya calculados en backend a partir de sus sesiones.
+export async function fetchSemanasObjetivo(atletaId) {
+  if (!atletaId) {
+    throw new Error('Se requiere atletaId para consultar las semanas del objetivo')
+  }
+
+  let response
+  try {
+    response = await fetch(`${API_BASE_URL}/planificacion/${atletaId}/semanas`)
+  } catch (error) {
+    throw mapNetworkError(error, 'No se pudo obtener el listado de semanas')
+  }
+
+  if (!response.ok) {
+    const backendMessage = await getErrorMessageFromResponse(response, 'No se pudo obtener el listado de semanas')
+    if (response.status === 404) {
+      throw new Error(backendMessage || 'No se encontró el atleta solicitado')
+    }
+    if (response.status === 409) {
+      throw new Error(backendMessage || 'El atleta no tiene objetivo activo para planificar')
+    }
+    throw new Error(backendMessage)
+  }
+
+  const data = await response.json()
+
+  if (!data.success || !data.data) {
+    throw new Error('El backend devolvió un listado de semanas no válido')
+  }
+
+  return data.data
+}
+
+// Obtiene las sesiones de una semana concreta (recurso CRUD ya existente,
+// reutilizado aquí para no duplicar la consulta al seleccionar una semana anterior).
+export async function fetchSesionesDeSemana(semanaId) {
+  if (!semanaId) {
+    throw new Error('Se requiere semanaId para consultar sus sesiones')
+  }
+
+  let response
+  try {
+    response = await fetch(`${API_BASE_URL}/semanasEntrenamiento/${semanaId}/sesiones`)
+  } catch (error) {
+    throw mapNetworkError(error, 'No se pudo obtener las sesiones de la semana')
+  }
+
+  if (!response.ok) {
+    const backendMessage = await getErrorMessageFromResponse(response, 'No se pudo obtener las sesiones de la semana')
+    if (response.status === 404) {
+      throw new Error(backendMessage || 'No se encontró la semana solicitada')
+    }
+    throw new Error(backendMessage)
+  }
+
+  const data = await response.json()
+
+  if (!data.success || !Array.isArray(data.data)) {
+    throw new Error('El backend devolvió una respuesta de sesiones no válida')
+  }
+
+  return data.data
+}
+
 export async function registrarMarcaObjetivoPlanificacion(atletaId, objetivoId, payload) {
   if (!atletaId) {
     throw new Error('Se requiere atletaId para registrar la marca del objetivo')

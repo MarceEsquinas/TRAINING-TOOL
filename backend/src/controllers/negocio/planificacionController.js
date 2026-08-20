@@ -1,5 +1,6 @@
 import {
   getPlanificacionAtletaData,
+  getSemanasObjetivoActivoData,
   getPropuestaNuevaSemanaData,
   createSemanaDesdePlanificacionData,
   createSesionSemanaDesdePlanificacionData,
@@ -30,6 +31,30 @@ export async function getPlanificacionAtleta(req, res) {
     });
   }
 }
+
+// Controlador para GET /planificacion/:atletaId/semanas
+export async function getSemanasObjetivoActivo(req, res) {
+  try {
+    const { atletaId } = req.params;
+    const data = await getSemanasObjetivoActivoData(atletaId);
+
+    return res.status(200).json({
+      success: true,
+      data,
+    });
+  } catch (error) {
+    if (error instanceof ServiceError) {
+      return res.status(error.status).json({ success: false, message: error.message });
+    }
+    console.error('Error al obtener las semanas del objetivo activo:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Error al obtener las semanas del objetivo activo',
+      error: error.message,
+    });
+  }
+}
+
 
 // Controlador para GET /planificacion/:atletaId/semanas/propuesta
 export async function getPropuestaNuevaSemana(req, res) {

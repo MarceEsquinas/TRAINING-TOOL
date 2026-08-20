@@ -1,7 +1,13 @@
 import { query } from '../../config/db.js';
 import { ServiceError } from '../serviceError.js';
+import { getHistorialPlanificacionByObjetivoId } from './historialAtletaService.js';
 
 const BUSINESS_TZ = 'Europe/Madrid';
+// Regla de negocio: un atleta no puede tener más de 2 semanas de entrenamiento
+// planificadas simultáneamente (sin finalizar) para el mismo objetivo.
+const MAX_SEMANAS_SIMULTANEAS_POR_OBJETIVO = 2;
+// Regla de negocio: una semana de entrenamiento no puede contener más de 7 sesiones.
+const MAX_SESIONES_POR_SEMANA = 7;
 const SQL_DIAS_HASTA_OBJETIVO = `(o.fecha_objetivo - (CURRENT_TIMESTAMP AT TIME ZONE '${BUSINESS_TZ}')::date)`;
 
 function toIsoDateUTC(date) {
@@ -56,7 +62,7 @@ async function getContextoPlanificacionOrThrow(atletaId) {
     throw new ServiceError(400, 'El atletaId debe ser un número válido');
   }
 
-  const atletaResult = await query('SELECT id, nombre FROM atleta WHERE id = $1', [atletaId]);
+  const atletaResult = await query('SELECT id, nombre, dias_disponibles FROM atleta WHERE id = $1', [atletaId]);
   if (atletaResult.rows.length === 0) {
     throw new ServiceError(404, `No se encontró atleta con id ${atletaId}`);
   }
@@ -90,6 +96,7 @@ export async function getPlanificacionAtletaData(atletaId) {
        SELECT
          a.id AS atleta_id,
          a.nombre AS atleta_nombre,
+         a.dias_disponibles,
          o.id AS objetivo_id,
          o.nombre AS objetivo_nombre,
          o.distancia_objetivo,
@@ -104,6 +111,7 @@ export async function getPlanificacionAtletaData(atletaId) {
        SELECT
          ao.atleta_id,
          ao.atleta_nombre,
+         ao.dias_disponibles,
          ao.objetivo_id,
          ao.objetivo_nombre,
          ao.distancia_objetivo,
@@ -141,6 +149,7 @@ export async function getPlanificacionAtletaData(atletaId) {
      SELECT
        ss.atleta_id,
        ss.atleta_nombre,
+       ss.dias_disponibles,
        ss.objetivo_id,
        ss.objetivo_nombre,
       ss.distancia_objetivo,
@@ -196,6 +205,9 @@ export async function getPlanificacionAtletaData(atletaId) {
     atleta: {
       id: rowPrincipal.atleta_id,
       nombre: rowPrincipal.atleta_nombre,
+      // dias_disponibles ya existe en la tabla atleta (alta/edición desde Administración);
+      // aquí solo se expone para dar contexto de planificación sin duplicar el dato.
+      dias_disponibles: Array.isArray(rowPrincipal.dias_disponibles) ? rowPrincipal.dias_disponibles : [],
     },
     objetivo: rowPrincipal.objetivo_id
       ? {
@@ -218,6 +230,55 @@ export async function getPlanificacionAtletaData(atletaId) {
         }
       : null,
     sesiones,
+  };
+}
+
+// Lista todas las semanas del objetivo activo del atleta (histórico completo del objetivo),
+// marcando cuál es la actual y cuál es la próxima para poder destacarlas en pantalla.
+// Reutiliza la consulta ya existente en historialAtletaService para no duplicar el cálculo
+// de km por semana (suma de sesiones) en dos sitios distintos.
+export async function getSemanasObjetivoActivoData(atletaId) {
+  const { atleta, objetivo } = await getContextoPlanificacionOrThrow(atletaId);
+
+  const semanasResult = await getHistorialPlanificacionByObjetivoId(objetivo.id);
+  const hoyISO = toIsoDateUTC(new Date());
+
+  const semanasOrdenadas = semanasResult.rows.map((semana) => ({
+    id: semana.semana_id,
+    fecha_inicio: semana.fecha_inicio,
+    fecha_fin: semana.fecha_fin,
+    total_sesiones: Number(semana.total_sesiones),
+    km_planificados_semana: Number(semana.kilometros_planificados),
+    km_realizados_semana: Number(semana.kilometros_realizados),
+  }));
+
+  const idProximaSemana = semanasOrdenadas.find(
+    (semana) => normalizeDateInputToIsoDate(semana.fecha_inicio) > hoyISO
+  )?.id;
+
+  const semanas = semanasOrdenadas.map((semana) => {
+    const inicio = normalizeDateInputToIsoDate(semana.fecha_inicio);
+    const fin = normalizeDateInputToIsoDate(semana.fecha_fin);
+    const esActual = hoyISO >= inicio && hoyISO <= fin;
+
+    return {
+      ...semana,
+      es_actual: esActual,
+      es_proxima: !esActual && semana.id === idProximaSemana,
+    };
+  });
+
+  return {
+    atleta: {
+      id: atleta.id,
+      nombre: atleta.nombre,
+    },
+    objetivo: {
+      id: objetivo.id,
+      nombre: objetivo.nombre,
+      fecha_objetivo: objetivo.fecha_objetivo,
+    },
+    semanas,
   };
 }
 
@@ -275,6 +336,23 @@ export async function createSemanaDesdePlanificacionData({ atletaId, fecha_inici
   const fechaInicio = parseIsoDateOrThrow(fecha_inicio);
   const fecha_inicio_normalizada = toIsoDateUTC(fechaInicio);
   const fecha_fin = plusDaysISO(fecha_inicio_normalizada, 6);
+
+  // Regla de negocio: un atleta no puede tener más de 2 semanas de entrenamiento
+  // planificadas simultáneamente para el mismo objetivo. "Simultánea" = semana que
+  // todavía no ha finalizado (fecha_fin >= hoy), es decir, la actual y/o la próxima.
+  const semanasVigentesResult = await query(
+    `SELECT COUNT(*)::int AS total
+     FROM semana_entrenamiento
+     WHERE objetivo_id = $1 AND fecha_fin >= CURRENT_DATE;`,
+    [objetivo.id]
+  );
+  const totalSemanasVigentes = semanasVigentesResult.rows[0]?.total ?? 0;
+  if (totalSemanasVigentes >= MAX_SEMANAS_SIMULTANEAS_POR_OBJETIVO) {
+    throw new ServiceError(
+      409,
+      `Un atleta no puede tener más de ${MAX_SEMANAS_SIMULTANEAS_POR_OBJETIVO} semanas de entrenamiento planificadas simultáneamente para el mismo objetivo`
+    );
+  }
 
   let insertResult;
   try {
@@ -397,6 +475,19 @@ export async function createSesionSemanaDesdePlanificacionData({
 
   const observacionesNormalizadas = String(observaciones ?? '').trim() || null;
   const kmPlanificados = parseRequiredNonNegativeNumber(kilometros_planificados, 'kilometros_planificados');
+
+  // Regla de negocio: una semana de entrenamiento no puede contener más de 7 sesiones.
+  const totalSesionesResult = await query(
+    `SELECT COUNT(*)::int AS total FROM sesion_entrenamiento WHERE semana_id = $1;`,
+    [semana.id]
+  );
+  const totalSesionesActuales = totalSesionesResult.rows[0]?.total ?? 0;
+  if (totalSesionesActuales >= MAX_SESIONES_POR_SEMANA) {
+    throw new ServiceError(
+      409,
+      `Una semana de entrenamiento no puede contener más de ${MAX_SESIONES_POR_SEMANA} sesiones`
+    );
+  }
 
   const siguienteOrdenResult = await query(
     `SELECT

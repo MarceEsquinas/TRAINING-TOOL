@@ -60,12 +60,15 @@ export async function getHistorialObjetivosByAtletaId(atletaId) {
 }
 
 // Servicio para obtener el historial de planificación de un objetivo (kilómetros realizados).
+// total_sesiones se añadió para que planificacionService pueda reutilizar esta misma consulta
+// al listar semanas (evita duplicar la lógica de agregación km/sesiones por semana).
 export async function getHistorialPlanificacionByObjetivoId(objetivoId) {
   return query(
     `SELECT
        s.id AS semana_id,
        s.fecha_inicio,
        s.fecha_fin,
+       COUNT(ses.id) AS total_sesiones,
        COALESCE(SUM(COALESCE(ses.kilometros_realizados, 0)), 0) AS kilometros_realizados,
        COALESCE(SUM(COALESCE(ses.kilometros_planificados, 0)), 0) AS kilometros_planificados
      FROM semana_entrenamiento s
@@ -202,6 +205,7 @@ export async function getHistorialCompletoAtletaData(atletaId) {
           semana_id: semana.semana_id,
           fecha_inicio: semana.fecha_inicio,
           fecha_fin: semana.fecha_fin,
+          total_sesiones: Number(semana.total_sesiones),
           kilometros_realizados: Number(semana.kilometros_realizados),
           kilometros_planificados: Number(semana.kilometros_planificados),
         })),
@@ -269,6 +273,7 @@ export async function getHistorialPlanificacionObjetivoData(objetivoId) {
     data: result.rows.map((semana) => ({
       semana_id: semana.semana_id,
       fecha_inicio: semana.fecha_inicio,
+      total_sesiones: Number(semana.total_sesiones),
       fecha_fin: semana.fecha_fin,
       kilometros_realizados: Number(semana.kilometros_realizados),
       kilometros_planificados: Number(semana.kilometros_planificados),

@@ -59,7 +59,7 @@ Sistema de gestión de entrenamientos para 4-50 atletas. Diseño simple, escalab
 
 ### 9. **Modificación del entrenador y actualización de contraseña**
 - **Cambio**: desde administración se puede actualizar `username`, `email` y `nombre` del entrenador usando el `usuario_id` del perfil asociado.
-- **Regla**: no se permite cambiar `id_usuario`, `role`, `usuario_id` ni `password` desde la edición del perfil.
+- **Regla**: no se permite cambiar `id_usuario`, `rol`, `usuario_id` ni `password` desde la edición del perfil.
 - **Contraseña**: existe una acción específica para actualizar solo el `password_hash` del usuario vinculado.
 - **Por qué**: cada dato sigue en su tabla correcta sin duplicar información ni mezclar responsabilidades.
 

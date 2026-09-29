@@ -35,6 +35,80 @@
   box-shadow: 0 20px 44px rgba(63, 47, 16, 0.12);
 }
 
+.register-card {
+  width: min(100%, 760px);
+}
+
+.register-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 18px;
+}
+
+.register-form__field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.register-form__group,
+.register-form__message,
+.register-form__submit {
+  grid-column: 1 / -1;
+}
+
+.register-form__group {
+  min-width: 0;
+  margin: 0;
+  padding: 14px;
+  border: 1px solid #d6c89d;
+  border-radius: 10px;
+}
+
+.register-form__group legend {
+  padding: 0 6px;
+}
+
+.register-form__days {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.register-form__options {
+  display: flex;
+  gap: 20px;
+}
+
+.register-form__option {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #3e3425;
+}
+
+.register-form__option input {
+  accent-color: #d92d2a;
+}
+
+.register-form__textarea {
+  min-height: 88px;
+  resize: vertical;
+}
+
+.register-form__injury {
+  margin-top: 14px;
+}
+
+.register-form__message {
+  padding-left: 20px;
+}
+
+.register-form__submit {
+  margin-top: 0;
+}
+
 .login-card__eyebrow {
   margin: 0;
   font-size: 0.8rem;
@@ -1329,6 +1403,18 @@
 }
 
 @media (max-width: 640px) {
+  .register-card {
+    padding: 22px;
+  }
+
+  .register-form {
+    grid-template-columns: 1fr;
+  }
+
+  .register-form__days {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .planificacion {
     padding-left: 16px;
     padding-right: 16px;

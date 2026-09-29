@@ -3,12 +3,13 @@ import { ServiceError } from '../serviceError.js';
 
 const SEXOS_VALIDOS = ['M', 'F', 'OTRO'];
 
-async function assertUsuarioAtletaValido(usuarioId, excludeId = null) {
+async function assertUsuarioAtletaValido(usuarioId, excludeId = null, client = null) {
   if (!usuarioId || Number.isNaN(Number(usuarioId))) {
     throw new ServiceError(400, 'El usuario_id del atleta debe ser un número válido');
   }
 
-  const userResult = await query(
+  const dbQuery = client ? client.query.bind(client) : query;
+  const userResult = await dbQuery(
     'SELECT id, rol FROM usuario WHERE id = $1',
     [usuarioId]
   );
@@ -21,7 +22,7 @@ async function assertUsuarioAtletaValido(usuarioId, excludeId = null) {
     throw new ServiceError(409, 'El usuario asociado debe tener rol ATLETA');
   }
 
-  const perfilResult = await query(
+  const perfilResult = await dbQuery(
     'SELECT id FROM atleta WHERE usuario_id = $1 AND id <> COALESCE($2, -1)',
     [usuarioId, excludeId]
   );
@@ -31,7 +32,7 @@ async function assertUsuarioAtletaValido(usuarioId, excludeId = null) {
   }
 }
 
-async function assertEntrenadorExiste(entrenadorId) {
+async function assertEntrenadorExiste(entrenadorId, client = null) {
   if (!entrenadorId) {
     return;
   }
@@ -40,7 +41,8 @@ async function assertEntrenadorExiste(entrenadorId) {
     throw new ServiceError(400, 'El entrenador_id debe ser un número válido');
   }
 
-  const result = await query(
+  const dbQuery = client ? client.query.bind(client) : query;
+  const result = await dbQuery(
     `SELECT e.id, u.rol
      FROM entrenadores e
      INNER JOIN usuario u ON u.id = e.usuario_id
@@ -80,7 +82,7 @@ export async function findAtletaById(id) {
   return result.rows[0] ?? null;
 }
 
-export async function createAtleta(payload = {}) {
+export async function createAtleta(payload = {}, client = null) {
   const {
     nombre,
     usuario_id,
@@ -109,8 +111,8 @@ export async function createAtleta(payload = {}) {
     throw new ServiceError(400, 'El sexo debe ser M, F u OTRO');
   }
 
-  await assertUsuarioAtletaValido(usuario_id);
-  await assertEntrenadorExiste(entrenador_id);
+  await assertUsuarioAtletaValido(usuario_id, null, client);
+  await assertEntrenadorExiste(entrenador_id, client);
 
   const sql = `
     INSERT INTO atleta
@@ -131,7 +133,8 @@ export async function createAtleta(payload = {}) {
   ];
 
   try {
-    const result = await query(sql, params);
+    const dbQuery = client ? client.query.bind(client) : query;
+    const result = await dbQuery(sql, params);
     return result.rows[0];
   } catch (error) {
     if (error.code === '23505') {

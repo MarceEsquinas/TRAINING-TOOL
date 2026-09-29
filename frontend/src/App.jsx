@@ -6,6 +6,7 @@ import Planificacion from './page/planificacion.jsx'
 import Historial from './page/historial.jsx'
 import FeedbackDetalle from './page/feedbackDetalle.jsx'
 import Login from './page/login.jsx'
+import Register from './page/register.jsx'
 import AppLayout from './layouts/appLayout.jsx'
 
 const AUTH_USER_STORAGE_KEY = 'tt_auth_user'
@@ -108,6 +109,10 @@ function App() {
   function handleLoginSuccess(usuario) {
     setAuthUser(usuario)
     localStorage.setItem(AUTH_USER_STORAGE_KEY, JSON.stringify(usuario))
+  }
+
+  if (window.location.pathname === '/register') {
+    return <Register />
   }
 
   if (!authUser) {

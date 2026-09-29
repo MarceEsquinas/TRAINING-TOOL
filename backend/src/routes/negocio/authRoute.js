@@ -1,5 +1,5 @@
 import express from 'express';
-import { postLogin } from '../../controllers/negocio/authController.js';
+import { postLogin, postRegister } from '../../controllers/negocio/authController.js';
 
 const router = express.Router();
 
@@ -31,6 +31,7 @@ const router = express.Router();
 // ─────────────────────────────────────────────────────────────────────────────
 
 // Ruta pública: no necesita middleware de autenticación.
+router.post('/auth/register', postRegister);
 router.post('/auth/login', postLogin);
 
 export default router;

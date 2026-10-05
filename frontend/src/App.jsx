@@ -109,6 +109,16 @@ function App() {
   function handleLoginSuccess(usuario) {
     setAuthUser(usuario)
     localStorage.setItem(AUTH_USER_STORAGE_KEY, JSON.stringify(usuario))
+    window.history.replaceState(null, '', '/dashboard')
+  }
+
+  function handleLogout() {
+    localStorage.removeItem(AUTH_USER_STORAGE_KEY)
+    setAuthUser(null)
+    handleBackToDashboard()
+    setHeaderNotifications([])
+    setHeaderNotificationCount(0)
+    window.history.replaceState(null, '', '/login')
   }
 
   if (window.location.pathname === '/register') {
@@ -179,6 +189,7 @@ function App() {
         notificationCount: headerNotificationCount,
         notifications: headerNotifications,
         onOpenNotification: handleOpenFeedbackFromHeader,
+        onLogout: handleLogout,
       }}
       sidebarProps={{
         activeModule,

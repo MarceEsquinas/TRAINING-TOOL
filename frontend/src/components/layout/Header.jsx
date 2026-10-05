@@ -9,6 +9,7 @@ function Header({
   notificationCount = 0,
   notifications = [],
   onOpenNotification,
+  onLogout,
 }) {
   return (
     <header className="topbar">
@@ -27,6 +28,12 @@ function Header({
         notificationCount={notificationCount}
         onOpenNotification={onOpenNotification}
       />
+
+      {onLogout && (
+        <button className="topbar__logout" type="button" onClick={onLogout}>
+          Cerrar sesión
+        </button>
+      )}
     </header>
   )
 }

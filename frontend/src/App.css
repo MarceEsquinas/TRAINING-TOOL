@@ -336,6 +336,16 @@
   backdrop-filter: blur(2px);
 }
 
+.topbar__logout {
+  border: 1px solid #d9d1b1;
+  background: #fffef8;
+  color: #232323;
+  font: inherit;
+  border-radius: 12px;
+  padding: 8px 14px;
+  cursor: pointer;
+}
+
 .trainer__avatar {
   flex: 0 0 auto;
 }

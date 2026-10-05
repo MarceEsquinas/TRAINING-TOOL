@@ -10,11 +10,15 @@ async function parseJsonResponse(response, defaultError) {
   }
 
   if (!response.ok) {
-    throw new Error(payload?.message || defaultError)
+    const error = new Error(payload?.message || defaultError)
+    error.status = response.status
+    throw error
   }
 
   if (!payload?.success) {
-    throw new Error(payload?.message || defaultError)
+    const error = new Error(payload?.message || defaultError)
+    error.status = response.status
+    throw error
   }
 
   return payload

@@ -7,27 +7,31 @@ function Login({ onLoginSuccess }) {
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [info, setInfo] = useState('')
 
   async function handleSubmit(event) {
     event.preventDefault()
     setError('')
-    setInfo('')
+
+    if (!username.trim() || !password) {
+      setError('Introduce tu username y contraseña.')
+      return
+    }
 
     try {
       setLoading(true)
       const usuario = await loginUser({ username, password })
       onLoginSuccess?.(usuario)
     } catch (loginError) {
-      setError(loginError.message || 'No se pudo iniciar sesión')
+      if (loginError.status === 401) {
+        setError('Usuario o contraseña incorrectos')
+      } else if (loginError.status) {
+        setError(loginError.message || 'No se pudo iniciar sesión')
+      } else {
+        setError('No se pudo conectar con el servidor.')
+      }
     } finally {
       setLoading(false)
     }
-  }
-
-  function handleRegisterClick(event) {
-    event.preventDefault()
-    setInfo('Registro pendiente: se implementará en el siguiente bloque.')
   }
 
   return (
@@ -69,16 +73,13 @@ function Login({ onLoginSuccess }) {
           />
 
           {error ? <p className="login-form__error">{error}</p> : null}
-          {info ? <p className="login-form__info">{info}</p> : null}
-
           <button className="login-form__button" type="submit" disabled={loading}>
             {loading ? 'Validando...' : 'Iniciar sesión'}
           </button>
         </form>
 
         <p className="login-card__register">
-          ¿Aún no tienes cuenta?{' '}
-          <a href="#" onClick={handleRegisterClick}>Registrarse</a>
+          ¿No tienes cuenta? <a href="/register">Regístrate</a>
         </p>
       </section>
     </main>

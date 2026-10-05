@@ -6,14 +6,19 @@ export async function listSesionesEntrenamiento() {
   return result.rows;
 }
 
-async function assertSemanaEntrenamientoExists(semanaId) {
+async function assertSemanaEntrenamientoExists(semanaId, atletaId = null) {
   if (!semanaId || Number.isNaN(Number(semanaId))) {
     throw new ServiceError(400, 'El semanaId debe ser un número válido');
   }
 
+  // atletaId opcional (rol ATLETA): la semana debe colgar de un objetivo suyo; si no, 404.
   const result = await query(
-    'SELECT id FROM semana_entrenamiento WHERE id = $1 LIMIT 1;',
-    [semanaId]
+    `SELECT s.id
+     FROM semana_entrenamiento s
+     INNER JOIN objetivo o ON o.id = s.objetivo_id
+     WHERE s.id = $1 AND ($2::int IS NULL OR o.atleta_id = $2)
+     LIMIT 1;`,
+    [semanaId, atletaId]
   );
 
   if (result.rows.length === 0) {
@@ -21,8 +26,8 @@ async function assertSemanaEntrenamientoExists(semanaId) {
   }
 }
 
-export async function listSesionesEntrenamientoBySemanaId(semanaId) {
-  await assertSemanaEntrenamientoExists(semanaId);
+export async function listSesionesEntrenamientoBySemanaId(semanaId, atletaId = null) {
+  await assertSemanaEntrenamientoExists(semanaId, atletaId);
 
   const result = await query(
     `SELECT *

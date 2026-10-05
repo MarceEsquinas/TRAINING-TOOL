@@ -53,13 +53,20 @@ function normalizarDistanciaObjetivo(payload, { required = false } = {}) {
   return valorPrincipal;
 }
 
-export async function listObjetivos() {
-  const result = await query('SELECT * FROM objetivo ORDER BY id');
+// atletaId opcional: si llega, solo se devuelven los objetivos de ese atleta.
+export async function listObjetivos(atletaId = null) {
+  const result = await query(
+    'SELECT * FROM objetivo WHERE ($1::int IS NULL OR atleta_id = $1) ORDER BY id',
+    [atletaId]
+  );
   return result.rows;
 }
 
-export async function findObjetivoById(id) {
-  const result = await query('SELECT * FROM objetivo WHERE id = $1', [id]);
+export async function findObjetivoById(id, atletaId = null) {
+  const result = await query(
+    'SELECT * FROM objetivo WHERE id = $1 AND ($2::int IS NULL OR atleta_id = $2)',
+    [id, atletaId]
+  );
   return result.rows[0] ?? null;
 }
 

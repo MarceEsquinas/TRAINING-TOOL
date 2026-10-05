@@ -4,6 +4,7 @@ import {
   getPropuestaNuevaSemanaData,
   createSemanaDesdePlanificacionData,
   createSesionSemanaDesdePlanificacionData,
+  enviarFeedbackSemanaDesdePlanificacionData,
   registrarResultadoSesionDesdePlanificacionData,
   registrarMarcaObjetivoDesdePlanificacionData,
 } from '../../services/negocio/planificacionService.js';
@@ -134,6 +135,34 @@ export async function createSesionSemanaDesdePlanificacion(req, res) {
   }
 }
 
+// Controlador para POST /planificacion/:atletaId/semanas/:semanaId/feedback
+export async function enviarFeedbackSemanaDesdePlanificacion(req, res) {
+  try {
+    const { atletaId, semanaId } = req.params;
+    const data = await enviarFeedbackSemanaDesdePlanificacionData({
+      ...(req.body ?? {}),
+      atletaId,
+      semanaId,
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: 'Feedback enviado exitosamente',
+      data,
+    });
+  } catch (error) {
+    if (error instanceof ServiceError) {
+      return res.status(error.status).json({ success: false, message: error.message });
+    }
+    console.error('Error al enviar feedback semanal:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Error al enviar feedback semanal',
+      error: error.message,
+    });
+  }
+}
+
 // Controlador para PATCH /planificacion/:atletaId/semanas/:semanaId/sesiones/:sesionId/resultado
 export async function registrarResultadoSesionDesdePlanificacion(req, res) {
   try {
@@ -143,6 +172,7 @@ export async function registrarResultadoSesionDesdePlanificacion(req, res) {
       semanaId,
       sesionId,
       ...(req.body ?? {}),
+      rol: req.user.rol,
     });
 
     return res.status(200).json({

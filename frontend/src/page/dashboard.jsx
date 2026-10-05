@@ -3,7 +3,7 @@ import '../App.css'
 import { fetchDashboard } from '../services/dashboardApi'
 import { formatDate } from '../utils/dateFormat'
 
-function Dashboard({ onOpenPlanificacion, onOpenHistorial, onHeaderNotificationsChange }) {
+function Dashboard({ onOpenPlanificacion, onOpenHistorial, onHeaderNotificationsChange, rol, atletaIdPropio }) {
   // Estado de pantalla: datos, carga en curso y posible error de red.
   const [dashboardData, setDashboardData] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -170,24 +170,26 @@ function Dashboard({ onOpenPlanificacion, onOpenHistorial, onHeaderNotifications
 
             <div className="athlete-card__footer">
               <span className="field-label">{atleta.razonEstado || 'Prioridad de trabajo'}</span>
-              <div className="planificacion__actions">
-                <button
-                  className="plan-button"
-                  type="button"
-                  onClick={() => onOpenPlanificacion?.(atleta.id)}
-                  disabled={!atleta.id}
-                >
-                  Ver planificación
-                </button>
-                <button
-                  className="plan-button"
-                  type="button"
-                  onClick={() => onOpenHistorial?.(atleta.id)}
-                  disabled={!atleta.id}
-                >
-                  Ver historial
-                </button>
-              </div>
+              {(rol !== 'ATLETA' || atleta.id === atletaIdPropio) && (
+                <div className="planificacion__actions">
+                  <button
+                    className="plan-button"
+                    type="button"
+                    onClick={() => onOpenPlanificacion?.(atleta.id)}
+                    disabled={!atleta.id}
+                  >
+                    Ver planificación
+                  </button>
+                  <button
+                    className="plan-button"
+                    type="button"
+                    onClick={() => onOpenHistorial?.(atleta.id)}
+                    disabled={!atleta.id}
+                  >
+                    Ver historial
+                  </button>
+                </div>
+              )}
             </div>
           </article>
         ))}

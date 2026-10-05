@@ -1,8 +1,19 @@
 import logoCas from '../../assets/CAS_3.jpeg'
 import { useState } from 'react'
+import { MENU_POR_ROL } from '../../utils/permisos.js'
 
-function Sidebar({ activeModule = 'dashboard', onNavigate }) {
+const MODULOS = {
+  dashboard: 'Dashboard',
+  atletas: 'Atletas',
+  administracion: 'Administración',
+  planificacion: 'Planificación',
+  historial: 'Historial',
+  perfil: 'Perfil',
+}
+
+function Sidebar({ activeModule = 'dashboard', onNavigate, rol }) {
   const [logoLoadError, setLogoLoadError] = useState(false)
+  const modulosVisibles = MENU_POR_ROL[rol] || []
 
   return (
     <aside className="sidebar" aria-label="Navegacion principal">
@@ -31,29 +42,16 @@ function Sidebar({ activeModule = 'dashboard', onNavigate }) {
       </div>
 
       <nav className="menu" aria-label="Modulos de trabajo">
-        <button
-          className={`menu__item${activeModule === 'dashboard' ? ' menu__item--active' : ''}`}
-          type="button"
-          onClick={() => onNavigate?.('dashboard')}
-        >
-          Dashboard
-        </button>
-
-        <button
-          className={`menu__item${activeModule === 'atletas' ? ' menu__item--active' : ''}`}
-          type="button"
-          onClick={() => onNavigate?.('atletas')}
-        >
-          Atletas
-        </button>
-
-        <button
-          className={`menu__item${activeModule === 'administracion' ? ' menu__item--active' : ''}`}
-          type="button"
-          onClick={() => onNavigate?.('administracion')}
-        >
-          Administración
-        </button>
+        {modulosVisibles.map((moduleId) => (
+          <button
+            key={moduleId}
+            className={`menu__item${activeModule === moduleId ? ' menu__item--active' : ''}`}
+            type="button"
+            onClick={() => onNavigate?.(moduleId)}
+          >
+            {MODULOS[moduleId]}
+          </button>
+        ))}
       </nav>
     </aside>
   )

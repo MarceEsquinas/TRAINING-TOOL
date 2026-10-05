@@ -7,7 +7,9 @@ import Historial from './page/historial.jsx'
 import FeedbackDetalle from './page/feedbackDetalle.jsx'
 import Login from './page/login.jsx'
 import Register from './page/register.jsx'
+import Perfil from './page/perfil.jsx'
 import AppLayout from './layouts/appLayout.jsx'
+import { puedeAccederAModulo } from './utils/permisos.js'
 
 const AUTH_USER_STORAGE_KEY = 'tt_auth_user'
 
@@ -19,7 +21,7 @@ function loadStoredAuthUser() {
     }
 
     const parsed = JSON.parse(raw)
-    if (!parsed?.id || !parsed?.username) {
+    if (!parsed?.id || !parsed?.username || !parsed?.token) {
       return null
     }
 
@@ -42,7 +44,7 @@ function App() {
 
   // Navega a planificación usando el id del atleta pulsado en dashboard.
   function handleOpenPlanificacion(atletaId) {
-    setActiveModule('atletas')
+    setActiveModule(authUser.rol === 'ATLETA' ? 'planificacion' : 'atletas')
     setSelectedAtletaId(atletaId)
     setSelectedFeedbackId(null)
     setActiveView('planificacion')
@@ -50,7 +52,7 @@ function App() {
 
   // Navega a historial usando el id del atleta pulsado en dashboard.
   function handleOpenHistorial(atletaId) {
-    setActiveModule('atletas')
+    setActiveModule(authUser.rol === 'ATLETA' ? 'historial' : 'atletas')
     setSelectedAtletaId(atletaId)
     setSelectedFeedbackId(null)
     setActiveView('historial')
@@ -97,6 +99,20 @@ function App() {
       return
     }
 
+    // El atleta solo abre sus propias vistas: el id sale de su sesión, no de un parámetro.
+    if (moduleId === 'perfil') {
+      setActiveModule('perfil')
+      setActiveView('perfil')
+      return
+    }
+    if (moduleId === 'planificacion' || moduleId === 'historial') {
+      setActiveModule(moduleId)
+      setSelectedAtletaId(authUser.atletaId)
+      setSelectedFeedbackId(null)
+      setActiveView(moduleId)
+      return
+    }
+
     setActiveModule('administracion')
     setActiveView('administracion')
   }
@@ -130,12 +146,15 @@ function App() {
   }
 
   function renderMainContent() {
-    if (activeModule === 'dashboard') {
+    // Si el rol no puede abrir el módulo activo, se muestra Dashboard.
+    if (activeModule === 'dashboard' || !puedeAccederAModulo(authUser.rol, activeModule)) {
       return (
         <Dashboard
           onOpenPlanificacion={handleOpenPlanificacion}
           onOpenHistorial={handleOpenHistorial}
           onHeaderNotificationsChange={handleHeaderNotificationsChange}
+          rol={authUser.rol}
+          atletaIdPropio={authUser.atletaId}
         />
       )
     }
@@ -144,19 +163,27 @@ function App() {
       return <Administracion />
     }
 
-    if (activeView === 'planificacion' && selectedAtletaId) {
+    if (activeModule === 'perfil') {
+      return <Perfil />
+    }
+
+    // Un atleta nunca ve el id guardado en el estado: siempre el de su sesión.
+    const atletaIdVisible = authUser.rol === 'ATLETA' ? authUser.atletaId : selectedAtletaId
+
+    if (activeView === 'planificacion' && atletaIdVisible) {
       return (
         <Planificacion
-          atletaId={selectedAtletaId}
+          atletaId={atletaIdVisible}
+          rol={authUser.rol}
           onBack={handleBackToDashboard}
         />
       )
     }
 
-    if (activeView === 'historial' && selectedAtletaId) {
+    if (activeView === 'historial' && atletaIdVisible) {
       return (
         <Historial
-          atletaId={selectedAtletaId}
+          atletaId={atletaIdVisible}
           onBack={handleBackToDashboard}
         />
       )
@@ -194,6 +221,7 @@ function App() {
       sidebarProps={{
         activeModule,
         onNavigate: handleNavigateModule,
+        rol: authUser.rol,
       }}
     >
       {renderMainContent()}

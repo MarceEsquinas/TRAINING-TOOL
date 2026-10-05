@@ -9,8 +9,13 @@ import {
   putActualizarEntrenador,
   putActualizarPasswordEntrenador,
 } from '../../controllers/negocio/administracionController.js';
+import { verificarToken } from '../../middleware/verificarToken.js';
+import { verificarRol } from '../../middleware/verificarRol.js';
 
 const router = express.Router();
+
+// Toda la administración es solo para ADMIN.
+router.use('/administracion', verificarToken, verificarRol('ADMIN'));
 
 // Administración - Entrenadores
 router.post('/administracion/entrenadores', postCrearEntrenador);

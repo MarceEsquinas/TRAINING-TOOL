@@ -8,6 +8,7 @@ import {
   createSesionPlanificacion,
   registrarResultadoSesionPlanificacion,
   registrarMarcaObjetivoPlanificacion,
+  enviarFeedbackSemanaPlanificacion,
 } from '../services/planificacionApi'
 import { formatDate } from '../utils/dateFormat'
 
@@ -40,7 +41,7 @@ function formatDiasDisponibles(diasDisponibles) {
     .join(', ')
 }
 
-function Planificacion({ atletaId, onBack }) {
+function Planificacion({ atletaId, onBack, rol }) {
   // Estado de pantalla: datos, carga en curso y error de red/backend.
   const [planificacionData, setPlanificacionData] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -77,6 +78,15 @@ function Planificacion({ atletaId, onBack }) {
   // se refresca de forma puntual tras crear semanas/sesiones o registrar resultados.
   const [semanasObjetivo, setSemanasObjetivo] = useState([])
   const [semanasError, setSemanasError] = useState('')
+
+  const [feedbackCompletada, setFeedbackCompletada] = useState(true)
+  const [feedbackMotivo, setFeedbackMotivo] = useState('')
+  const [feedbackSensaciones, setFeedbackSensaciones] = useState('')
+  const [feedbackMolestias, setFeedbackMolestias] = useState('')
+  const [feedbackRitmo, setFeedbackRitmo] = useState('')
+  const [enviandoFeedback, setEnviandoFeedback] = useState(false)
+  const [feedbackError, setFeedbackError] = useState('')
+  const [feedbackExito, setFeedbackExito] = useState('')
 
   // null = se está viendo la semana de contexto (actual o próxima) resuelta por el backend.
   // Con un id distinto, se está consultando el historial de otra semana del objetivo.
@@ -174,6 +184,33 @@ function Planificacion({ atletaId, onBack }) {
   }, [esSemanaContexto, semana, semanasObjetivo, semanaSeleccionadaId])
   const sesionesMostradas = esSemanaContexto ? sesiones : sesionesSemanaSeleccionada
 
+  // Solo presentación: el backend aplica las mismas reglas.
+  const puedeGestionar = rol !== 'ATLETA'
+  const puedeRegistrarResultado =
+    puedeGestionar || semanasObjetivo.find((item) => item.id === semanaMostrada?.id)?.es_actual === true
+  const semanaMostradaInfo = semanasObjetivo.find((item) => item.id === semanaMostrada?.id)
+
+  async function handleEnviarFeedback() {
+    try {
+      setEnviandoFeedback(true)
+      setFeedbackError('')
+      setFeedbackExito('')
+      await enviarFeedbackSemanaPlanificacion(atletaId, semanaMostrada.id, {
+        completada: feedbackCompletada,
+        motivo_no_completada: feedbackMotivo,
+        sensaciones: feedbackSensaciones,
+        molestias: feedbackMolestias,
+        ritmo_rodaje: feedbackRitmo,
+      })
+      setFeedbackExito('Feedback enviado correctamente')
+      await loadSemanasObjetivo()
+    } catch (sendError) {
+      setFeedbackError(sendError.message || 'No se pudo enviar el feedback')
+    } finally {
+      setEnviandoFeedback(false)
+    }
+  }
+
   async function handleSelectSemana(semanaId) {
     if (semanaId === semana?.id) {
       setSemanaSeleccionadaId(null)
@@ -216,12 +253,16 @@ function Planificacion({ atletaId, onBack }) {
       return false
     }
 
+    if (!puedeGestionar) {
+      return false
+    }
+
     if (marcaRegistradaPendienteConfirmacion) {
       return true
     }
 
     return !objetivo?.marca_conseguida
-  }, [objetivo, objetivoEnDiaDeCompeticion, marcaRegistradaPendienteConfirmacion])
+  }, [objetivo, objetivoEnDiaDeCompeticion, marcaRegistradaPendienteConfirmacion, puedeGestionar])
 
   async function handleOpenCreateWeek() {
     try {
@@ -503,7 +544,7 @@ function Planificacion({ atletaId, onBack }) {
         </button>
         <h2>Planificación del atleta</h2>
         <p>¿Qué necesito saber para planificar el entrenamiento de este atleta?</p>
-        {!loading && !error && (
+        {!loading && !error && puedeGestionar && (
           <div className="planificacion__actions planificacion__actions--top">
             <button
               className="planificacion__back"
@@ -745,6 +786,7 @@ function Planificacion({ atletaId, onBack }) {
                 onClick={handleOpenCreateSesion}
                 disabled={!semana || !esSemanaContexto || creatingSesion}
                 title={!esSemanaContexto ? 'Solo se pueden crear sesiones en la semana actual o próxima' : undefined}
+                hidden={!puedeGestionar}
               >
                 Crear sesión
               </button>
@@ -839,7 +881,7 @@ function Planificacion({ atletaId, onBack }) {
                         type="checkbox"
                         checked={getResultadoStateForSesion(sesion).realizadoSegunPlan}
                         onChange={(event) => handleResultadoCheckboxChange(sesion.id, event.target.checked)}
-                        disabled={savingResultadoId === sesion.id}
+                        disabled={!puedeRegistrarResultado || savingResultadoId === sesion.id}
                       />
                       <span>☑</span>
                     </label>
@@ -850,14 +892,14 @@ function Planificacion({ atletaId, onBack }) {
                       step="0.1"
                       value={getResultadoStateForSesion(sesion).kmRealizadosInput}
                       onChange={(event) => handleKmRealizadosChange(sesion.id, event.target.value)}
-                      disabled={getResultadoStateForSesion(sesion).realizadoSegunPlan || savingResultadoId === sesion.id}
+                      disabled={!puedeRegistrarResultado || getResultadoStateForSesion(sesion).realizadoSegunPlan || savingResultadoId === sesion.id}
                       placeholder={getResultadoStateForSesion(sesion).realizadoSegunPlan ? 'Automático' : 'Manual'}
                     />
                     <button
                       className="planificacion__back"
                       type="button"
                       onClick={() => handleGuardarResultadoSesion(sesion)}
-                      disabled={savingResultadoId === sesion.id}
+                      disabled={!puedeRegistrarResultado || savingResultadoId === sesion.id}
                     >
                       {savingResultadoId === sesion.id ? 'Guardando...' : 'Guardar'}
                     </button>
@@ -872,11 +914,85 @@ function Planificacion({ atletaId, onBack }) {
 
           <article className="planificacion__card planificacion__card--feedback-placeholder">
             <h3>Feedback</h3>
-            <p className="planificacion__hint">
-              Próximamente: el atleta podrá enviar feedback de la semana actual y el entrenador
-              podrá consultarlo aquí, asociado a la semana/sesión correspondiente. Esta sección
-              queda preparada en la interfaz sin implementar todavía la funcionalidad completa.
-            </p>
+            {!puedeGestionar && semanaMostradaInfo?.es_actual && !semanaMostradaInfo.tiene_feedback && (
+              <div className="planificacion__session-create">
+                <label className="planificacion__row-checkbox" htmlFor="feedback-completada">
+                  <input
+                    id="feedback-completada"
+                    type="checkbox"
+                    checked={feedbackCompletada}
+                    onChange={(event) => setFeedbackCompletada(event.target.checked)}
+                  />
+                  <span>He completado la semana según el plan</span>
+                </label>
+
+                {!feedbackCompletada && (
+                  <label className="planificacion__field" htmlFor="feedback-motivo">
+                    <span className="field-label">Motivo</span>
+                    <input
+                      id="feedback-motivo"
+                      type="text"
+                      maxLength={255}
+                      value={feedbackMotivo}
+                      onChange={(event) => setFeedbackMotivo(event.target.value)}
+                    />
+                  </label>
+                )}
+
+                <label className="planificacion__field" htmlFor="feedback-sensaciones">
+                  <span className="field-label">Sensaciones</span>
+                  <textarea
+                    id="feedback-sensaciones"
+                    rows={2}
+                    value={feedbackSensaciones}
+                    onChange={(event) => setFeedbackSensaciones(event.target.value)}
+                  />
+                </label>
+                <label className="planificacion__field" htmlFor="feedback-molestias">
+                  <span className="field-label">Molestias</span>
+                  <textarea
+                    id="feedback-molestias"
+                    rows={2}
+                    value={feedbackMolestias}
+                    onChange={(event) => setFeedbackMolestias(event.target.value)}
+                  />
+                </label>
+                <label className="planificacion__field" htmlFor="feedback-ritmo">
+                  <span className="field-label">Ritmo de rodaje</span>
+                  <input
+                    id="feedback-ritmo"
+                    type="text"
+                    value={feedbackRitmo}
+                    onChange={(event) => setFeedbackRitmo(event.target.value)}
+                  />
+                </label>
+
+                {feedbackError && <p>{feedbackError}</p>}
+                <div className="planificacion__actions">
+                  <button
+                    className="planificacion__back"
+                    type="button"
+                    onClick={handleEnviarFeedback}
+                    disabled={enviandoFeedback}
+                  >
+                    {enviandoFeedback ? 'Enviando...' : 'Enviar feedback'}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {feedbackExito && <p className="planificacion__success">{feedbackExito}</p>}
+            {!puedeGestionar && semanaMostradaInfo?.tiene_feedback && !feedbackExito && (
+              <p className="planificacion__hint">Ya enviaste el feedback de esta semana.</p>
+            )}
+            {!puedeGestionar && semanaMostradaInfo && !semanaMostradaInfo.es_actual && (
+              <p className="planificacion__hint">Solo puedes enviar feedback de la semana actual.</p>
+            )}
+            {puedeGestionar && (
+              <p className="planificacion__hint">
+                El feedback que envíen los atletas se consulta desde el historial del atleta.
+              </p>
+            )}
           </article>
         </section>
       )}

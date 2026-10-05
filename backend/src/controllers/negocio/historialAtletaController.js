@@ -7,6 +7,11 @@ import {
 } from '../../services/negocio/historialAtletaService.js';
 import { ServiceError } from '../../services/serviceError.js';
 
+// Un ATLETA solo consulta lo suyo; el resto de roles no se limita por atleta.
+function atletaIdDeRestriccion(req) {
+  return req.user?.rol === 'ATLETA' ? req.user.atletaId : null;
+}
+
 // Controlador para GET /historial/atletas/:atletaId
 export async function getHistorialCompletoAtleta(req, res) {
   try {
@@ -59,7 +64,7 @@ export async function getHistorialObjetivosAtleta(req, res) {
 export async function getHistorialPlanificacionObjetivo(req, res) {
   try {
     const { objetivoId } = req.params;
-    const result = await getHistorialPlanificacionObjetivoData(objetivoId);
+    const result = await getHistorialPlanificacionObjetivoData(objetivoId, atletaIdDeRestriccion(req));
 
     return res.status(200).json({
       success: true,
@@ -109,7 +114,7 @@ export async function getHistorialFeedbackAtleta(req, res) {
 export async function getDetalleFeedback(req, res) {
   try {
     const { feedbackId } = req.params;
-    const data = await getDetalleFeedbackData(feedbackId);
+    const data = await getDetalleFeedbackData(feedbackId, atletaIdDeRestriccion(req));
 
     return res.status(200).json({
       success: true,

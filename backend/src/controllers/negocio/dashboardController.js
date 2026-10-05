@@ -5,7 +5,7 @@ export async function getDashboard(req, res) {
   try {
     const limit = parseInt(req.query.limit, 10) || 50;
     const offset = parseInt(req.query.offset, 10) || 0;
-    const dashboardData = await getDashboardData({ limit, offset });
+    const dashboardData = await getDashboardData({ limit, offset, rol: req.user.rol });
 
     return res.status(200).json({
       success: true,

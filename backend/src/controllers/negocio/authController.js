@@ -25,7 +25,7 @@ export async function postRegister(req, res) {
 
 export async function postLogin(req, res) {
   try {
-    const usuario = await loginData({
+    const { usuario, token } = await loginData({
       username: req.body?.username,
       password: req.body?.password,
     });
@@ -35,6 +35,7 @@ export async function postLogin(req, res) {
       message: 'Login correcto',
       data: {
         usuario,
+        token,
       },
     });
   } catch (error) {

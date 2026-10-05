@@ -16,7 +16,7 @@ async function hasFeedbackLeidoColumn() {
 }
 
 // Servicio de negocio del dashboard: concentra consultas y armado de datos.
-export async function getDashboardData({ limit, offset }) {
+export async function getDashboardData({ limit, offset, rol }) {
   const hasLeido = await hasFeedbackLeidoColumn();
 
   // 1) KPIs
@@ -157,6 +157,15 @@ export async function getDashboardData({ limit, offset }) {
      LIMIT $1 OFFSET $2;`,
     [limit, offset]
   );
+
+  // El feedback es el buzón del entrenador: el atleta ve las tarjetas pero no el feedback ajeno.
+  if (rol === 'ATLETA') {
+    return {
+      summary: { ...summary, num_feedback_nuevos: 0 },
+      notifications: [],
+      atletas: atletasResult.rows,
+    };
+  }
 
   return {
     summary,

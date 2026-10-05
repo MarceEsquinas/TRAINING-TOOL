@@ -252,6 +252,12 @@ export async function getSemanasObjetivoActivoData(atletaId) {
     km_realizados_semana: Number(semana.kilometros_realizados),
   }));
 
+  const feedbackResult = await query(
+    'SELECT semana_id FROM feedback_semanal WHERE semana_id = ANY($1::int[])',
+    [semanasOrdenadas.map((semana) => semana.id)]
+  );
+  const semanasConFeedback = new Set(feedbackResult.rows.map((row) => row.semana_id));
+
   const idProximaSemana = semanasOrdenadas.find(
     (semana) => normalizeDateInputToIsoDate(semana.fecha_inicio) > hoyISO
   )?.id;
@@ -265,6 +271,7 @@ export async function getSemanasObjetivoActivoData(atletaId) {
       ...semana,
       es_actual: esActual,
       es_proxima: !esActual && semana.id === idProximaSemana,
+      tiene_feedback: semanasConFeedback.has(semana.id),
     };
   });
 
@@ -412,6 +419,7 @@ async function getSemanaDelAtletaOrThrow({ atletaId, semanaId }) {
        s.objetivo_id,
        s.fecha_inicio,
        s.fecha_fin,
+       (CURRENT_DATE BETWEEN s.fecha_inicio AND s.fecha_fin) AS es_actual,
        o.atleta_id
      FROM semana_entrenamiento s
      INNER JOIN objetivo o ON o.id = s.objetivo_id
@@ -607,9 +615,16 @@ export async function registrarResultadoSesionDesdePlanificacionData({
   sesionId,
   realizado_segun_planificacion,
   kilometros_realizados,
+  rol,
 }) {
   await getContextoPlanificacionOrThrow(atletaId);
-  await getSemanaDelAtletaOrThrow({ atletaId, semanaId });
+  const semana = await getSemanaDelAtletaOrThrow({ atletaId, semanaId });
+
+  // Regla de negocio: el atleta solo puede registrar resultados de la semana actual.
+  if (rol === 'ATLETA' && !semana.es_actual) {
+    throw new ServiceError(403, 'Solo puedes registrar kilómetros realizados de la semana actual');
+  }
+
   const sesion = await getSesionDeSemanaOrThrow({ semanaId, sesionId });
 
   const marcadoSegunPlan = Boolean(realizado_segun_planificacion);
@@ -640,6 +655,63 @@ export async function registrarResultadoSesionDesdePlanificacionData({
     sesion: result.rows[0],
     regla_aplicada: marcadoSegunPlan ? 'segun_planificacion' : 'registro_manual',
   };
+}
+
+function textoOpcional(value, fieldName, max) {
+  const texto = String(value ?? '').trim();
+  if (texto.length > max) {
+    throw new ServiceError(400, `El campo ${fieldName} no puede superar ${max} caracteres`);
+  }
+  return texto || null;
+}
+
+// Regla de negocio: el atleta envía el feedback de su semana actual (uno por semana).
+export async function enviarFeedbackSemanaDesdePlanificacionData({
+  atletaId,
+  semanaId,
+  completada,
+  motivo_no_completada,
+  sensaciones,
+  molestias,
+  ritmo_rodaje,
+}) {
+  await getContextoPlanificacionOrThrow(atletaId);
+  const semana = await getSemanaDelAtletaOrThrow({ atletaId, semanaId });
+
+  if (!semana.es_actual) {
+    throw new ServiceError(403, 'Solo puedes enviar feedback de la semana actual');
+  }
+
+  if (typeof completada !== 'boolean') {
+    throw new ServiceError(400, 'El campo completada debe ser verdadero o falso');
+  }
+
+  const motivo = textoOpcional(motivo_no_completada, 'motivo_no_completada', 255);
+  if (!completada && !motivo) {
+    throw new ServiceError(400, 'Indica el motivo si no completaste la semana');
+  }
+
+  try {
+    const result = await query(
+      `INSERT INTO feedback_semanal (semana_id, completada, motivo_no_completada, sensaciones, molestias, ritmo_rodaje)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING id, semana_id, completada, motivo_no_completada, sensaciones, molestias, ritmo_rodaje, created_at;`,
+      [
+        semana.id,
+        completada,
+        completada ? null : motivo,
+        textoOpcional(sensaciones, 'sensaciones', 2000),
+        textoOpcional(molestias, 'molestias', 2000),
+        textoOpcional(ritmo_rodaje, 'ritmo_rodaje', 2000),
+      ]
+    );
+    return { feedback: result.rows[0] };
+  } catch (error) {
+    if (error.code === '23505') {
+      throw new ServiceError(409, 'Ya enviaste el feedback de esta semana');
+    }
+    throw error;
+  }
 }
 
 function parseMarcaConseguidaOrThrow(marcaConseguida) {

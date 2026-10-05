@@ -105,10 +105,10 @@ export async function getHistorialFeedbackResumenByAtletaId(atletaId) {
 }
 
 // Servicio para obtener el detalle completo de un feedback.
-export async function getDetalleFeedbackById(feedbackId) {
+export async function getDetalleFeedbackById(feedbackId, { marcarLeido = true } = {}) {
   const hasLeido = await hasFeedbackLeidoColumn();
 
-  if (hasLeido) {
+  if (hasLeido && marcarLeido) {
     return query(
       // Regla de negocio: abrir detalle equivale a lectura del feedback.
       `WITH feedback_marcado AS (
@@ -151,7 +151,7 @@ export async function getDetalleFeedbackById(feedbackId) {
     `SELECT
        f.id,
        f.semana_id,
-       false AS leido,
+       ${hasLeido ? 'f.leido' : 'false AS leido'},
        f.completada,
        f.motivo_no_completada,
        f.sensaciones,
@@ -256,13 +256,16 @@ export async function getHistorialObjetivosAtletaData(atletaId) {
   };
 }
 
-export async function getHistorialPlanificacionObjetivoData(objetivoId) {
+// atletaId opcional: si llega (rol ATLETA), solo se devuelve si el objetivo es suyo.
+export async function getHistorialPlanificacionObjetivoData(objetivoId, atletaId = null) {
   if (!esNumeroValido(objetivoId)) {
     throw new ServiceError(400, 'El objetivoId debe ser un número válido');
   }
 
   const objetivoResult = await getObjetivoById(objetivoId);
-  if (objetivoResult.rows.length === 0) {
+  const objetivoPropio = atletaId === null
+    || Number(objetivoResult.rows[0]?.atleta_id) === Number(atletaId);
+  if (objetivoResult.rows.length === 0 || !objetivoPropio) {
     throw new ServiceError(404, `No se encontró objetivo con id ${objetivoId}`);
   }
 
@@ -311,15 +314,17 @@ export async function getHistorialFeedbackAtletaData(atletaId) {
   };
 }
 
-export async function getDetalleFeedbackData(feedbackId) {
+// atletaId opcional (rol ATLETA): solo su feedback y sin marcarlo como leído del entrenador.
+export async function getDetalleFeedbackData(feedbackId, atletaId = null) {
   if (!esNumeroValido(feedbackId)) {
     throw new ServiceError(400, 'El feedbackId debe ser un número válido');
   }
 
-  const result = await getDetalleFeedbackById(feedbackId);
-  if (result.rows.length === 0) {
+  const result = await getDetalleFeedbackById(feedbackId, { marcarLeido: atletaId === null });
+  const feedback = result.rows[0];
+  if (!feedback || (atletaId !== null && Number(feedback.atleta_id) !== Number(atletaId))) {
     throw new ServiceError(404, `No se encontró feedback con id ${feedbackId}`);
   }
 
-  return result.rows[0];
+  return feedback;
 }

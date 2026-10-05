@@ -1,4 +1,4 @@
-import { API_BASE_URL } from './apiBaseUrl'
+import { API_BASE_URL, fetchWithAuth } from './apiBaseUrl'
 
 // Normaliza errores de red/negocio para que la UI no repita parsing en cada llamada.
 async function parseJsonResponse(response, defaultError) {
@@ -23,7 +23,7 @@ async function parseJsonResponse(response, defaultError) {
 
 // --- Entrenadores (entidad) ---
 export async function fetchEntrenadoresAdmin() {
-  const response = await fetch(`${API_BASE_URL}/entrenadores`)
+  const response = await fetchWithAuth(`${API_BASE_URL}/entrenadores`)
   const payload = await parseJsonResponse(response, 'No se pudo obtener entrenadores')
   return payload.data || []
 }
@@ -36,7 +36,7 @@ export async function createEntrenadorAdmin(data) {
     nombre: data?.nombre ?? '',
   }
 
-  const response = await fetch(`${API_BASE_URL}/administracion/entrenadores`, {
+  const response = await fetchWithAuth(`${API_BASE_URL}/administracion/entrenadores`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payloadRequest),
@@ -47,7 +47,7 @@ export async function createEntrenadorAdmin(data) {
 }
 
 export async function updateEntrenadorAdmin(entrenadorId, data) {
-  const response = await fetch(`${API_BASE_URL}/administracion/entrenadores/${entrenadorId}`, {
+  const response = await fetchWithAuth(`${API_BASE_URL}/administracion/entrenadores/${entrenadorId}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data || {}),
@@ -58,7 +58,7 @@ export async function updateEntrenadorAdmin(entrenadorId, data) {
 }
 
 export async function resetPasswordTemporalEntrenadorAdmin(entrenadorId, nuevaPassword) {
-  const response = await fetch(`${API_BASE_URL}/administracion/entrenadores/${entrenadorId}/password`, {
+  const response = await fetchWithAuth(`${API_BASE_URL}/administracion/entrenadores/${entrenadorId}/password`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ nueva_password: nuevaPassword }),
@@ -71,13 +71,13 @@ export async function resetPasswordTemporalEntrenadorAdmin(entrenadorId, nuevaPa
 // --- Atletas (entidad + acciones de asignación) ---
 export async function fetchAtletasAdmin({ estado } = {}) {
   const query = estado ? `?estado=${encodeURIComponent(estado)}` : ''
-  const response = await fetch(`${API_BASE_URL}/administracion/atletas${query}`)
+  const response = await fetchWithAuth(`${API_BASE_URL}/administracion/atletas${query}`)
   const payload = await parseJsonResponse(response, 'No se pudo obtener atletas de administración')
   return payload.data || []
 }
 
 export async function autoasignarAtletaAdmin(atletaId, entrenadorId) {
-  const response = await fetch(`${API_BASE_URL}/administracion/atletas/${atletaId}/autoasignacion`, {
+  const response = await fetchWithAuth(`${API_BASE_URL}/administracion/atletas/${atletaId}/autoasignacion`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ entrenador_id: entrenadorId }),
@@ -88,7 +88,7 @@ export async function autoasignarAtletaAdmin(atletaId, entrenadorId) {
 }
 
 export async function reasignarAtletaAdmin(atletaId, entrenadorId) {
-  const response = await fetch(`${API_BASE_URL}/administracion/atletas/${atletaId}/reasignacion`, {
+  const response = await fetchWithAuth(`${API_BASE_URL}/administracion/atletas/${atletaId}/reasignacion`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ entrenador_id: entrenadorId }),
@@ -99,7 +99,7 @@ export async function reasignarAtletaAdmin(atletaId, entrenadorId) {
 }
 
 export async function updateAtletaAdmin(atletaId, data) {
-  const response = await fetch(`${API_BASE_URL}/administracion/atletas/${atletaId}`, {
+  const response = await fetchWithAuth(`${API_BASE_URL}/administracion/atletas/${atletaId}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data || {}),
@@ -110,7 +110,7 @@ export async function updateAtletaAdmin(atletaId, data) {
 }
 
 export async function resetPasswordTemporalAtletaAdmin(atletaId, nuevaPassword) {
-  const response = await fetch(`${API_BASE_URL}/administracion/atletas/${atletaId}/reset-password`, {
+  const response = await fetchWithAuth(`${API_BASE_URL}/administracion/atletas/${atletaId}/reset-password`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ nueva_password: nuevaPassword }),

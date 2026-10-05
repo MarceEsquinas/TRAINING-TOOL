@@ -1,4 +1,4 @@
-import { API_BASE_URL } from './apiBaseUrl'
+import { API_BASE_URL, fetchWithAuth } from './apiBaseUrl'
 
 function mapNetworkError(error, fallbackMessage) {
   if (error instanceof TypeError) {
@@ -28,7 +28,7 @@ export async function fetchPlanificacion(atletaId) {
 
   let response
   try {
-    response = await fetch(`${API_BASE_URL}/planificacion/${atletaId}`)
+    response = await fetchWithAuth(`${API_BASE_URL}/planificacion/${atletaId}`)
   } catch (error) {
     throw mapNetworkError(error, 'No se pudo obtener la planificación del atleta')
   }
@@ -58,7 +58,7 @@ export async function fetchPropuestaNuevaSemana(atletaId) {
 
   let response
   try {
-    response = await fetch(`${API_BASE_URL}/planificacion/${atletaId}/semanas/propuesta`)
+    response = await fetchWithAuth(`${API_BASE_URL}/planificacion/${atletaId}/semanas/propuesta`)
   } catch (error) {
     throw mapNetworkError(error, 'No se pudo obtener la propuesta de nueva semana')
   }
@@ -96,7 +96,7 @@ export async function createSemanaPlanificacion(atletaId, fechaInicio) {
 
   let response
   try {
-    response = await fetch(`${API_BASE_URL}/planificacion/${atletaId}/semanas`, {
+    response = await fetchWithAuth(`${API_BASE_URL}/planificacion/${atletaId}/semanas`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -141,7 +141,7 @@ export async function createSesionPlanificacion(atletaId, semanaId, payload) {
 
   let response
   try {
-    response = await fetch(`${API_BASE_URL}/planificacion/${atletaId}/semanas/${semanaId}/sesiones`, {
+    response = await fetchWithAuth(`${API_BASE_URL}/planificacion/${atletaId}/semanas/${semanaId}/sesiones`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -190,7 +190,7 @@ export async function registrarResultadoSesionPlanificacion(atletaId, semanaId, 
 
   let response
   try {
-    response = await fetch(`${API_BASE_URL}/planificacion/${atletaId}/semanas/${semanaId}/sesiones/${sesionId}/resultado`, {
+    response = await fetchWithAuth(`${API_BASE_URL}/planificacion/${atletaId}/semanas/${semanaId}/sesiones/${sesionId}/resultado`, {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
@@ -233,7 +233,7 @@ export async function fetchSemanasObjetivo(atletaId) {
 
   let response
   try {
-    response = await fetch(`${API_BASE_URL}/planificacion/${atletaId}/semanas`)
+    response = await fetchWithAuth(`${API_BASE_URL}/planificacion/${atletaId}/semanas`)
   } catch (error) {
     throw mapNetworkError(error, 'No se pudo obtener el listado de semanas')
   }
@@ -267,7 +267,7 @@ export async function fetchSesionesDeSemana(semanaId) {
 
   let response
   try {
-    response = await fetch(`${API_BASE_URL}/semanasEntrenamiento/${semanaId}/sesiones`)
+    response = await fetchWithAuth(`${API_BASE_URL}/semanasEntrenamiento/${semanaId}/sesiones`)
   } catch (error) {
     throw mapNetworkError(error, 'No se pudo obtener las sesiones de la semana')
   }
@@ -289,6 +289,38 @@ export async function fetchSesionesDeSemana(semanaId) {
   return data.data
 }
 
+// El atleta envía el feedback de su semana actual (uno por semana).
+export async function enviarFeedbackSemanaPlanificacion(atletaId, semanaId, payload) {
+  if (!atletaId || !semanaId) {
+    throw new Error('Se requiere atletaId y semanaId para enviar el feedback')
+  }
+
+  let response
+  try {
+    response = await fetchWithAuth(`${API_BASE_URL}/planificacion/${atletaId}/semanas/${semanaId}/feedback`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload || {}),
+    })
+  } catch (error) {
+    throw mapNetworkError(error, 'No se pudo enviar el feedback')
+  }
+
+  if (!response.ok) {
+    throw new Error(await getErrorMessageFromResponse(response, 'No se pudo enviar el feedback'))
+  }
+
+  const data = await response.json()
+
+  if (!data.success || !data.data?.feedback) {
+    throw new Error('El backend devolvió una respuesta de feedback no válida')
+  }
+
+  return data.data
+}
+
 export async function registrarMarcaObjetivoPlanificacion(atletaId, objetivoId, payload) {
   if (!atletaId) {
     throw new Error('Se requiere atletaId para registrar la marca del objetivo')
@@ -300,7 +332,7 @@ export async function registrarMarcaObjetivoPlanificacion(atletaId, objetivoId, 
 
   let response
   try {
-    response = await fetch(`${API_BASE_URL}/planificacion/${atletaId}/objetivos/${objetivoId}/marca`, {
+    response = await fetchWithAuth(`${API_BASE_URL}/planificacion/${atletaId}/objetivos/${objetivoId}/marca`, {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',

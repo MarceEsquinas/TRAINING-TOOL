@@ -32,7 +32,8 @@ export async function getSesionesEntrenamiento(req, res) {
 export async function getSesionesEntrenamientoBySemanaId(req, res) {
   try {
     const { semanaId } = req.params;
-    const sesiones = await listSesionesEntrenamientoBySemanaId(semanaId);
+    const atletaId = req.user?.rol === 'ATLETA' ? req.user.atletaId : null;
+    const sesiones = await listSesionesEntrenamientoBySemanaId(semanaId, atletaId);
 
     return res.status(200).json({
       success: true,

@@ -32,5 +32,5 @@ export async function loginUser({ username, password }) {
   })
 
   const payload = await parseJsonResponse(response, 'No se pudo iniciar sesión')
-  return payload.data?.usuario
+  return { ...payload.data?.usuario, token: payload.data?.token }
 }

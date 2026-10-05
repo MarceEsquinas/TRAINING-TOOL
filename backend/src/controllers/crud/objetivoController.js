@@ -7,10 +7,15 @@ import {
 } from '../../services/crud/objetivoService.js';
 import { ServiceError } from '../../services/serviceError.js';
 
+// Un ATLETA solo consulta lo suyo; el resto de roles no se limita por atleta.
+function atletaIdDeRestriccion(req) {
+  return req.user?.rol === 'ATLETA' ? req.user.atletaId : null;
+}
+
 // Controlador para listar todos los objetivos desde PostgreSQL.
 export async function getObjetivos(req, res) {
   try {
-    const objetivos = await listObjetivos();
+    const objetivos = await listObjetivos(atletaIdDeRestriccion(req));
 
     return res.status(200).json({
       success: true,
@@ -31,7 +36,7 @@ export async function getObjetivos(req, res) {
 export async function getObjetivoById(req, res) {
   try {
     const { id } = req.params;
-    const objetivo = await findObjetivoById(id);
+    const objetivo = await findObjetivoById(id, atletaIdDeRestriccion(req));
 
     if (!objetivo) {
       return res.status(404).json({

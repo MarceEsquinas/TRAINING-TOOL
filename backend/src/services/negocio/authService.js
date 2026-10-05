@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import jwt from 'jsonwebtoken';
 import pool from '../../config/db.js';
 import { query } from '../../config/db.js';
 import { createAtleta } from '../crud/atletasService.js';
@@ -129,35 +130,18 @@ export async function loginData({ username, password }) {
     throw new ServiceError(401, 'Credenciales inválidas');
   }
 
-  // ─── CONCEPTO: GENERACIÓN DE TOKEN ───────────────────────────────────────
-  //
-  // Una vez verificadas las credenciales, el backend genera un TOKEN.
-  // Un token es una cadena firmada que contiene datos del usuario (payload).
-  //
-  // Ejemplo con la librería jsonwebtoken (JWT):
-  //
-  //   import jwt from 'jsonwebtoken';
-  //
-  //   const token = jwt.sign(
-  //     { id: usuario.id, username: usuario.username, rol: usuario.rol },  // payload: qué guarda
-  //     process.env.JWT_SECRET,                                            // firma secreta del servidor
-  //     { expiresIn: '8h' }                                                // cuánto tiempo es válido
-  //   );
-  //
-  // El cliente guarda ese token y lo envía en cada petición futura:
-  //   Authorization: Bearer <token>
-  //
-  // El servidor puede verificar que el token es auténtico (fue firmado por él)
-  // sin necesidad de consultar la base de datos en cada petición.
-  //
-  // POR QUÉ NO LO IMPLEMENTAMOS AÚN:
-  //   Este bloque solo necesita verificar credenciales.
-  //   El token protegería las rutas del panel, que viene en el siguiente bloque.
-  // ────────────────────────────────────────────────────────────────────────────
+  const payload = { id: usuario.id, username: usuario.username, rol: usuario.rol };
 
-  return {
-    id: usuario.id,
-    username: usuario.username,
-    rol: usuario.rol,
-  };
+  // El atletaId sale de la BD (atleta.usuario_id es UNIQUE), nunca del cliente.
+  if (usuario.rol === 'ATLETA') {
+    const atletaResult = await query('SELECT id FROM atleta WHERE usuario_id = $1 LIMIT 1', [usuario.id]);
+    if (atletaResult.rows.length === 0) {
+      throw new ServiceError(403, 'Tu usuario no tiene un perfil de atleta asociado');
+    }
+    payload.atletaId = atletaResult.rows[0].id;
+  }
+
+  const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '8h' });
+
+  return { usuario: payload, token };
 }

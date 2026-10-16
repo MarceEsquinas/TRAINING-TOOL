@@ -59,25 +59,32 @@ async function assertEntrenadorExiste(entrenadorId, client = null) {
   }
 }
 
-export async function listAtletas() {
+// user opcional: un ENTRENADOR solo ve los atletas asignados a él (se resuelve por e.usuario_id).
+function usuarioEntrenadorDe(user) {
+  return user?.rol === 'ENTRENADOR' ? user.id : null;
+}
+
+export async function listAtletas(user = null) {
   const result = await query(
     `SELECT a.*, u.username, u.email, u.rol, e.nombre AS entrenador_nombre
      FROM atleta a
      INNER JOIN usuario u ON u.id = a.usuario_id
      LEFT JOIN entrenadores e ON e.id = a.entrenador_id
-     ORDER BY a.id`
+     WHERE ($1::int IS NULL OR e.usuario_id = $1)
+     ORDER BY a.id`,
+    [usuarioEntrenadorDe(user)]
   );
   return result.rows;
 }
 
-export async function findAtletaById(id) {
+export async function findAtletaById(id, user = null) {
   const result = await query(
     `SELECT a.*, u.username, u.email, u.rol, e.nombre AS entrenador_nombre
      FROM atleta a
      INNER JOIN usuario u ON u.id = a.usuario_id
      LEFT JOIN entrenadores e ON e.id = a.entrenador_id
-     WHERE a.id = $1`,
-    [id]
+     WHERE a.id = $1 AND ($2::int IS NULL OR e.usuario_id = $2)`,
+    [id, usuarioEntrenadorDe(user)]
   );
   return result.rows[0] ?? null;
 }

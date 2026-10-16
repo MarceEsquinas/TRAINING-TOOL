@@ -15,26 +15,46 @@ async function hasFeedbackLeidoColumn() {
   return result.rows.length > 0;
 }
 
+// Si el parámetro $p es NULL no se filtra; si no, solo atletas asignados a ese usuario entrenador.
+function filtroAtleta(columnaAtletaId, p) {
+  return `($${p}::int IS NULL OR EXISTS (
+    SELECT 1 FROM atleta fa JOIN entrenadores fe ON fe.id = fa.entrenador_id
+    WHERE fa.id = ${columnaAtletaId} AND fe.usuario_id = $${p}))`;
+}
+
+function filtroFeedback(p) {
+  return `($${p}::int IS NULL OR EXISTS (
+    SELECT 1 FROM semana_entrenamiento fs
+    JOIN objetivo fo ON fo.id = fs.objetivo_id
+    JOIN atleta fa ON fa.id = fo.atleta_id
+    JOIN entrenadores fe ON fe.id = fa.entrenador_id
+    WHERE fs.id = f.semana_id AND fe.usuario_id = $${p}))`;
+}
+
 // Servicio de negocio del dashboard: concentra consultas y armado de datos.
-export async function getDashboardData({ limit, offset, rol }) {
+export async function getDashboardData({ limit, offset, rol, usuarioId }) {
   const hasLeido = await hasFeedbackLeidoColumn();
+  const entrenadorUsuarioId = rol === 'ENTRENADOR' ? usuarioId : null;
 
   // 1) KPIs
   const numAtletasResult = await query(
-    `SELECT COUNT(*) AS num_atletas_activos FROM objetivo o WHERE o.activo = true;`
+    `SELECT COUNT(*) AS num_atletas_activos FROM objetivo o WHERE o.activo = true AND ${filtroAtleta('o.atleta_id', 1)};`,
+    [entrenadorUsuarioId]
   );
   const numFeedbackNuevosResult = await query(
     // Regla de negocio: feedback no leído es la única fuente de notificaciones.
     hasLeido
       ? `SELECT COUNT(*) AS num_feedback_nuevos
          FROM feedback_semanal f
-         WHERE f.leido = false;`
+         WHERE f.leido = false AND ${filtroFeedback(1)};`
       : `SELECT COUNT(*) AS num_feedback_nuevos
-         FROM feedback_semanal f;`
+         FROM feedback_semanal f
+         WHERE ${filtroFeedback(1)};`,
+    [entrenadorUsuarioId]
   );
   const numPlanificacionesPendientesResult = await query(
     `WITH atletas_activos AS (
-      SELECT o.id AS objetivo_id, o.atleta_id FROM objetivo o WHERE o.activo = true
+      SELECT o.id AS objetivo_id, o.atleta_id FROM objetivo o WHERE o.activo = true AND ${filtroAtleta('o.atleta_id', 1)}
     ), semana_seleccionada AS (
       SELECT a.objetivo_id, COALESCE(
         (SELECT s.id FROM semana_entrenamiento s WHERE s.objetivo_id = a.objetivo_id AND CURRENT_DATE BETWEEN s.fecha_inicio AND s.fecha_fin LIMIT 1),
@@ -50,13 +70,16 @@ export async function getDashboardData({ limit, offset, rol }) {
       LEFT JOIN sesion_entrenamiento ses ON ses.semana_id = s.id
       GROUP BY ss.objetivo_id, s.id, s.fecha_fin
       HAVING (s.fecha_fin - CURRENT_DATE) <= 2 AND COUNT(ses.id) = 0
-    ) t;`
+    ) t;`,
+    [entrenadorUsuarioId]
   );
   const numObjetivosProximosResult = await query(
     `SELECT COUNT(*) AS num_objetivos_proximos
      FROM objetivo o
      WHERE o.activo = true
-       AND (o.fecha_objetivo - (CURRENT_TIMESTAMP AT TIME ZONE '${BUSINESS_TZ}')::date) <= 9;`
+       AND ${filtroAtleta('o.atleta_id', 1)}
+       AND (o.fecha_objetivo - (CURRENT_TIMESTAMP AT TIME ZONE '${BUSINESS_TZ}')::date) <= 9;`,
+    [entrenadorUsuarioId]
   );
 
   const summary = {
@@ -88,7 +111,7 @@ export async function getDashboardData({ limit, offset, rol }) {
          JOIN semana_entrenamiento s ON s.id = f.semana_id
          JOIN objetivo o ON o.id = s.objetivo_id
          JOIN atleta a ON a.id = o.atleta_id
-         WHERE f.leido = false
+         WHERE f.leido = false AND ${filtroFeedback(2)}
          ORDER BY f.created_at DESC
          LIMIT $1`
       : `SELECT
@@ -106,9 +129,10 @@ export async function getDashboardData({ limit, offset, rol }) {
          JOIN semana_entrenamiento s ON s.id = f.semana_id
          JOIN objetivo o ON o.id = s.objetivo_id
          JOIN atleta a ON a.id = o.atleta_id
+         WHERE ${filtroFeedback(2)}
          ORDER BY f.created_at DESC
          LIMIT $1`,
-    [limit]
+    [limit, entrenadorUsuarioId]
   );
 
   // 3) Lista de atletas priorizada
@@ -117,6 +141,7 @@ export async function getDashboardData({ limit, offset, rol }) {
        SELECT at.id AS atleta_id, at.nombre AS atleta_nombre, o.id AS objetivo_id, o.nombre AS objetivo_nombre, o.fecha_objetivo
        FROM atleta at
        JOIN objetivo o ON o.atleta_id = at.id AND o.activo = true
+       WHERE ${filtroAtleta('at.id', 3)}
      ), semana_seleccionada AS (
        SELECT aa.*, COALESCE(
          (SELECT s.id FROM semana_entrenamiento s WHERE s.objetivo_id = aa.objetivo_id AND CURRENT_DATE BETWEEN s.fecha_inicio AND s.fecha_fin LIMIT 1),
@@ -155,7 +180,7 @@ export async function getDashboardData({ limit, offset, rol }) {
        END,
        a.atleta_nombre ASC
      LIMIT $1 OFFSET $2;`,
-    [limit, offset]
+    [limit, offset, entrenadorUsuarioId]
   );
 
   // El feedback es el buzón del entrenador: el atleta ve las tarjetas pero no el feedback ajeno.

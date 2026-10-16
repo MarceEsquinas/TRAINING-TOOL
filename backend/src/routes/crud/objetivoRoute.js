@@ -1,5 +1,5 @@
 import express from 'express';
-import { getObjetivos, getObjetivoById, postObjetivo, updateObjetivoById, deleteObjetivoById } from '../../controllers/crud/objetivoController.js';
+import { getObjetivos, getObjetivoById, postObjetivo, updateObjetivoById } from '../../controllers/crud/objetivoController.js';
 import { verificarToken } from '../../middleware/verificarToken.js';
 import { verificarRol } from '../../middleware/verificarRol.js';
 
@@ -9,7 +9,6 @@ const router = express.Router();
 router.get('/objetivos', verificarToken, verificarRol('ADMIN', 'ENTRENADOR', 'ATLETA'), getObjetivos);
 router.get('/objetivos/:id', verificarToken, verificarRol('ADMIN', 'ENTRENADOR', 'ATLETA'), getObjetivoById);
 router.put('/objetivos/:id', verificarToken, verificarRol('ADMIN', 'ENTRENADOR'), updateObjetivoById);
-router.delete('/objetivos/:id', verificarToken, verificarRol('ADMIN', 'ENTRENADOR'), deleteObjetivoById);
-router.post('/objetivos', verificarToken, verificarRol('ADMIN', 'ENTRENADOR'), postObjetivo);
+router.post('/objetivos', verificarToken, verificarRol('ENTRENADOR', 'ATLETA'), postObjetivo);
 
 export default router;

@@ -1,16 +1,30 @@
-# React + Vite
+# Frontend de Training Tool
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Aplicación en React hecha con Vite. Para instalar todo el proyecto, mira el [README principal](../README.md).
 
-Currently, two official plugins are available:
+## Comandos
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+```bash
+npm install     # instalar dependencias
+npm run dev     # arrancar en desarrollo
+npm run build   # generar la versión final
+npm run lint    # revisar el código
+```
 
-## React Compiler
+## Carpetas (dentro de `src/`)
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+| Carpeta | Contenido |
+|---|---|
+| `page/` | Pantallas: login, registro, dashboard, atletas, planificación, historial, feedback, administración y perfil |
+| `components/layout/` | Cabecera, menú lateral y campana de notificaciones |
+| `layouts/` | Estructura general de la aplicación |
+| `services/` | Llamadas a la API (una por pantalla) |
+| `utils/` | Funciones de ayuda: formato de fechas y permisos por rol |
 
-## Expanding the ESLint configuration
+## Cosas a tener en cuenta
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+- La dirección de la API sale de `VITE_API_BASE_URL` (o `VITE_API_URL`). Si no existe, usa `http://localhost:3000`.
+- No se usa React Router: `App.jsx` decide qué pantalla mostrar.
+- Tras el login, el usuario y el token se guardan en el `localStorage` con la clave `tt_auth_user`.
+- Las llamadas a la API pasan por `fetchWithAuth` (en `services/apiBaseUrl.js`), que añade el token.
+- `utils/permisos.js` decide qué opciones del menú ve cada rol. Solo afecta a lo que se ve: quien protege los datos es el backend.

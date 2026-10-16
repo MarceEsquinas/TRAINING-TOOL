@@ -70,17 +70,43 @@ export async function findObjetivoById(id, atletaId = null) {
   return result.rows[0] ?? null;
 }
 
-export async function createObjetivo(payload) {
-  const { nombre, atleta_id, fecha_objetivo, activo } = payload;
+// Decide para qué atleta se crea el objetivo según el rol; nunca confía en el body para el ATLETA.
+async function resolverAtletaDestino(user, atletaIdBody) {
+  if (user?.rol === 'ATLETA') {
+    return Number(user.atletaId);
+  }
+
+  if (user?.rol !== 'ENTRENADOR') {
+    throw new ServiceError(403, 'Tu rol no puede crear objetivos');
+  }
+
+  if (!atletaIdBody || Number.isNaN(Number(atletaIdBody))) {
+    throw new ServiceError(400, 'El atleta_id es requerido para el objetivo');
+  }
+
+  // Pertenencia: el atleta debe estar asignado a este entrenador (se resuelve por BD, no por token).
+  const result = await query(
+    `SELECT a.id
+     FROM atleta a
+     JOIN entrenadores e ON e.id = a.entrenador_id
+     WHERE a.id = $1 AND e.usuario_id = $2`,
+    [Number(atletaIdBody), user.id]
+  );
+  if (result.rows.length === 0) {
+    throw new ServiceError(403, 'El atleta no está asignado a tu usuario');
+  }
+  return result.rows[0].id;
+}
+
+export async function createObjetivo(payload, user) {
+  const { nombre, fecha_objetivo } = payload;
   const distanciaObjetivo = normalizarDistanciaObjetivo(payload, { required: true });
 
   if (!nombre || String(nombre).trim() === '') {
     throw new ServiceError(400, 'El nombre del objetivo es requerido');
   }
 
-  if (!atleta_id) {
-    throw new ServiceError(400, 'El atleta_id es requerido para el objetivo');
-  }
+  const atleta_id = await resolverAtletaDestino(user, payload.atleta_id);
 
   if (!fecha_objetivo) {
     throw new ServiceError(400, 'La fecha_objetivo es requerida');
@@ -89,24 +115,32 @@ export async function createObjetivo(payload) {
   const sql = `
     INSERT INTO objetivo
     (nombre, atleta_id, distancia_objetivo, fecha_objetivo, activo)
-    VALUES ($1, $2, $3, $4, $5)
+    VALUES ($1, $2, $3, $4, true)
     RETURNING *;
   `;
 
-  const params = [
-    String(nombre).trim(),
-    atleta_id,
-    distanciaObjetivo,
-    fecha_objetivo,
-    activo === undefined ? false : activo,
-  ];
-  const result = await query(sql, params);
-  return result.rows[0];
+  const params = [String(nombre).trim(), atleta_id, distanciaObjetivo, fecha_objetivo];
+
+  try {
+    const result = await query(sql, params);
+    return result.rows[0];
+  } catch (error) {
+    // Índice único parcial idx_objetivo_activo_por_atleta.
+    if (error.code === '23505') {
+      throw new ServiceError(409, 'El atleta ya tiene un objetivo activo');
+    }
+    throw error;
+  }
 }
 
 export async function updateObjetivo(id, payload) {
-  const { nombre, atleta_id, fecha_objetivo, activo } = payload;
+  const { nombre, fecha_objetivo } = payload;
   const distanciaObjetivo = normalizarDistanciaObjetivo(payload);
+
+  // Estado y dueño no se editan aquí: activo cambia solo al crear/finalizar.
+  if (payload.activo !== undefined || payload.atleta_id !== undefined || payload.marca_conseguida !== undefined) {
+    throw new ServiceError(400, 'No se puede modificar activo, atleta_id ni marca_conseguida desde este endpoint');
+  }
 
   if (nombre !== undefined && String(nombre).trim() === '') {
     throw new ServiceError(400, 'El nombre del objetivo no puede estar vacío');
@@ -120,10 +154,6 @@ export async function updateObjetivo(id, payload) {
     fields.push(`nombre = $${idx++}`);
     params.push(String(nombre).trim());
   }
-  if (atleta_id !== undefined) {
-    fields.push(`atleta_id = $${idx++}`);
-    params.push(atleta_id);
-  }
   if (distanciaObjetivo !== undefined) {
     fields.push(`distancia_objetivo = $${idx++}`);
     params.push(distanciaObjetivo);
@@ -131,10 +161,6 @@ export async function updateObjetivo(id, payload) {
   if (fecha_objetivo !== undefined) {
     fields.push(`fecha_objetivo = $${idx++}`);
     params.push(fecha_objetivo);
-  }
-  if (activo !== undefined) {
-    fields.push(`activo = $${idx++}`);
-    params.push(activo);
   }
 
   if (fields.length === 0) {
@@ -149,13 +175,5 @@ export async function updateObjetivo(id, payload) {
     throw new ServiceError(404, `No se encontró objetivo con id ${id}`);
   }
 
-  return result.rows[0];
-}
-
-export async function deleteObjetivo(id) {
-  const result = await query('DELETE FROM objetivo WHERE id = $1 RETURNING *;', [id]);
-  if (result.rows.length === 0) {
-    throw new ServiceError(404, `No se encontró objetivo con id ${id}`);
-  }
   return result.rows[0];
 }

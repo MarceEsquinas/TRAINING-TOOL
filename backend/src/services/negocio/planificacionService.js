@@ -270,6 +270,7 @@ export async function getSemanasObjetivoActivoData(atletaId) {
     return {
       ...semana,
       es_actual: esActual,
+      es_futura: inicio > hoyISO,
       es_proxima: !esActual && semana.id === idProximaSemana,
       tiene_feedback: semanasConFeedback.has(semana.id),
     };
@@ -420,6 +421,7 @@ async function getSemanaDelAtletaOrThrow({ atletaId, semanaId }) {
        s.fecha_inicio,
        s.fecha_fin,
        (CURRENT_DATE BETWEEN s.fecha_inicio AND s.fecha_fin) AS es_actual,
+       (s.fecha_inicio > CURRENT_DATE) AS es_futura,
        o.atleta_id
      FROM semana_entrenamiento s
      INNER JOIN objetivo o ON o.id = s.objetivo_id
@@ -665,7 +667,7 @@ function textoOpcional(value, fieldName, max) {
   return texto || null;
 }
 
-// Regla de negocio: el atleta envía el feedback de su semana actual (uno por semana).
+// Regla de negocio: el atleta envía el feedback de una semana ya iniciada, actual o pasada (uno por semana).
 export async function enviarFeedbackSemanaDesdePlanificacionData({
   atletaId,
   semanaId,
@@ -678,8 +680,8 @@ export async function enviarFeedbackSemanaDesdePlanificacionData({
   await getContextoPlanificacionOrThrow(atletaId);
   const semana = await getSemanaDelAtletaOrThrow({ atletaId, semanaId });
 
-  if (!semana.es_actual) {
-    throw new ServiceError(403, 'Solo puedes enviar feedback de la semana actual');
+  if (semana.es_futura) {
+    throw new ServiceError(403, 'No puedes enviar feedback de una semana que aún no ha comenzado');
   }
 
   if (typeof completada !== 'boolean') {
@@ -726,7 +728,7 @@ function parseMarcaConseguidaOrThrow(marcaConseguida) {
   return marcaNormalizada;
 }
 
-export async function registrarMarcaObjetivoDesdePlanificacionData({ atletaId, objetivoId, marca_conseguida }) {
+export async function registrarMarcaObjetivoDesdePlanificacionData({ atletaId, objetivoId, marca_conseguida, user }) {
   if (!objetivoId || Number.isNaN(Number(objetivoId))) {
     throw new ServiceError(400, 'El objetivoId debe ser un número válido');
   }
@@ -761,16 +763,33 @@ export async function registrarMarcaObjetivoDesdePlanificacionData({ atletaId, o
     throw new ServiceError(409, 'La marca solo se puede registrar cuando quedan 0 o menos días');
   }
 
-  // Regla de negocio: registrar marca cierra el objetivo automáticamente.
+  if (user?.rol === 'ENTRENADOR') {
+    const pertenencia = await query(
+      `SELECT 1
+       FROM atleta a
+       JOIN entrenadores e ON e.id = a.entrenador_id
+       WHERE a.id = $1 AND e.usuario_id = $2`,
+      [objetivo.atleta_id, user.id]
+    );
+    if (pertenencia.rows.length === 0) {
+      throw new ServiceError(403, 'El atleta no está asignado a tu usuario');
+    }
+  }
+
+  // Un único UPDATE es atómico; AND activo = true evita cerrar dos veces y pisar la marca (carrera entre dos peticiones).
   const updateResult = await query(
     `UPDATE objetivo
      SET marca_conseguida = $1,
          activo = false,
          updated_at = CURRENT_TIMESTAMP
-     WHERE id = $2
+     WHERE id = $2 AND activo = true
      RETURNING id, atleta_id, nombre, distancia_objetivo, marca_conseguida, fecha_objetivo, activo, updated_at;`,
     [marcaNormalizada, objetivo.id]
   );
+
+  if (updateResult.rows.length === 0) {
+    throw new ServiceError(409, 'El objetivo ya está finalizado');
+  }
 
   return {
     objetivo: updateResult.rows[0],

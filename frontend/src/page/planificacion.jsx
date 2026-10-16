@@ -212,6 +212,8 @@ function Planificacion({ atletaId, onBack, rol }) {
   }
 
   async function handleSelectSemana(semanaId) {
+    setFeedbackExito('')
+    setFeedbackError('')
     if (semanaId === semana?.id) {
       setSemanaSeleccionadaId(null)
       setSesionesSemanaSeleccionada([])
@@ -344,13 +346,8 @@ function Planificacion({ atletaId, onBack, rol }) {
   }
 
   async function handleCreateSesion() {
-    if (!semana?.id) {
+    if (!semanaMostrada?.id) {
       setSesionError('Debes seleccionar una semana antes de crear una sesión')
-      return
-    }
-
-    if (!esSemanaContexto) {
-      setSesionError('Solo se pueden crear sesiones en la semana actual o próxima')
       return
     }
 
@@ -369,7 +366,7 @@ function Planificacion({ atletaId, onBack, rol }) {
       setSesionError('')
       setSesionSuccess('')
 
-      const data = await createSesionPlanificacion(atletaId, semana.id, {
+      const data = await createSesionPlanificacion(atletaId, semanaMostrada.id, {
         descripcion: sesionDescripcion.trim(),
         observaciones: sesionObservaciones.trim(),
         kilometros_planificados: Number(sesionKmPlanificados),
@@ -377,7 +374,7 @@ function Planificacion({ atletaId, onBack, rol }) {
 
       setSesionSuccess(`Sesión ${data?.sesion?.orden || ''} creada correctamente`)
       resetSesionForm()
-      await loadPlanificacion()
+      await refreshSesionesVisibles()
     } catch (createSesionError) {
       setSesionError(createSesionError.message || 'No se pudo crear la sesión')
     } finally {
@@ -784,8 +781,7 @@ function Planificacion({ atletaId, onBack, rol }) {
                 className="planificacion__back"
                 type="button"
                 onClick={handleOpenCreateSesion}
-                disabled={!semana || !esSemanaContexto || creatingSesion}
-                title={!esSemanaContexto ? 'Solo se pueden crear sesiones en la semana actual o próxima' : undefined}
+                disabled={!semanaMostrada || creatingSesion}
                 hidden={!puedeGestionar}
               >
                 Crear sesión
@@ -838,7 +834,7 @@ function Planificacion({ atletaId, onBack, rol }) {
                     className="planificacion__back"
                     type="button"
                     onClick={handleCreateSesion}
-                    disabled={creatingSesion || !semana || !esSemanaContexto}
+                    disabled={creatingSesion || !semanaMostrada}
                   >
                     {creatingSesion ? 'Creando sesión...' : 'Guardar sesión'}
                   </button>
@@ -914,7 +910,7 @@ function Planificacion({ atletaId, onBack, rol }) {
 
           <article className="planificacion__card planificacion__card--feedback-placeholder">
             <h3>Feedback</h3>
-            {!puedeGestionar && semanaMostradaInfo?.es_actual && !semanaMostradaInfo.tiene_feedback && (
+            {!puedeGestionar && semanaMostradaInfo && !semanaMostradaInfo.es_futura && !semanaMostradaInfo.tiene_feedback && (
               <div className="planificacion__session-create">
                 <label className="planificacion__row-checkbox" htmlFor="feedback-completada">
                   <input
@@ -985,8 +981,8 @@ function Planificacion({ atletaId, onBack, rol }) {
             {!puedeGestionar && semanaMostradaInfo?.tiene_feedback && !feedbackExito && (
               <p className="planificacion__hint">Ya enviaste el feedback de esta semana.</p>
             )}
-            {!puedeGestionar && semanaMostradaInfo && !semanaMostradaInfo.es_actual && (
-              <p className="planificacion__hint">Solo puedes enviar feedback de la semana actual.</p>
+            {!puedeGestionar && semanaMostradaInfo?.es_futura && (
+              <p className="planificacion__hint">Podrás enviar el feedback cuando la semana haya comenzado.</p>
             )}
             {puedeGestionar && (
               <p className="planificacion__hint">

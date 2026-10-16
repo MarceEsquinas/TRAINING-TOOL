@@ -201,6 +201,7 @@ function App() {
 
     return (
       <Atletas
+        rol={authUser.rol}
         onOpenPlanificacion={handleOpenPlanificacion}
         onOpenHistorial={handleOpenHistorial}
       />

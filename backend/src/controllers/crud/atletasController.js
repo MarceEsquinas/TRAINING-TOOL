@@ -10,7 +10,7 @@ import { ServiceError } from '../../services/serviceError.js';
 // Controlador para listar todos los atletas desde PostgreSQL.
 export async function getAtletas(req, res) {
   try {
-    const atletas = await listAtletas();
+    const atletas = await listAtletas(req.user);
     
     return res.status(200).json({
       success: true,
@@ -54,7 +54,7 @@ export async function postAtletas(req, res) {
 export async function getAtletaById(req, res) {
   try {
     const { id } = req.params;
-    const atleta = await findAtletaById(id);
+    const atleta = await findAtletaById(id, req.user);
 
     if (!atleta) {
       return res.status(404).json({

@@ -5,6 +5,14 @@ import {
   fetchSidebarHistorialAtleta,
   fetchSidebarSesionesSemana,
 } from '../services/sidebarApi'
+import { crearObjetivo, DISTANCIAS_OBJETIVO } from '../services/objetivosApi'
+
+const FORMULARIO_OBJETIVO_VACIO = {
+  nombre: '',
+  distancia_objetivo: DISTANCIAS_OBJETIVO[0],
+  distancia_objetivo_manual: '',
+  fecha_objetivo: '',
+}
 
 function formatKilometros(value) {
   if (value === null || value === undefined || Number.isNaN(Number(value))) {
@@ -34,7 +42,11 @@ function buildFeedbackLabel(feedback) {
   return `${feedback.completada ? 'Completada' : 'No completada'} · ${formatDate(feedback.fecha_feedback)}`
 }
 
-function Atletas({ onOpenPlanificacion, onOpenHistorial }) {
+function Atletas({ rol, onOpenPlanificacion, onOpenHistorial }) {
+  const [formAtletaId, setFormAtletaId] = useState(null)
+  const [formObjetivo, setFormObjetivo] = useState(FORMULARIO_OBJETIVO_VACIO)
+  const [formError, setFormError] = useState('')
+  const [formSaving, setFormSaving] = useState(false)
   const [atletas, setAtletas] = useState([])
   const [atletasLoading, setAtletasLoading] = useState(true)
   const [atletasError, setAtletasError] = useState('')
@@ -101,6 +113,10 @@ function Atletas({ onOpenPlanificacion, onOpenHistorial }) {
       return
     }
 
+    await cargarHistorial(atletaIdNumerico)
+  }
+
+  async function cargarHistorial(atletaIdNumerico) {
     try {
       setHistorialLoadingByAtleta((prev) => ({
         ...prev,
@@ -127,6 +143,45 @@ function Atletas({ onOpenPlanificacion, onOpenHistorial }) {
         ...prev,
         [atletaIdNumerico]: false,
       }))
+    }
+  }
+
+  function handleAbrirFormObjetivo(atletaId) {
+    setFormAtletaId(atletaId)
+    setFormObjetivo(FORMULARIO_OBJETIVO_VACIO)
+    setFormError('')
+  }
+
+  async function handleSubmitObjetivo(event, atletaId) {
+    event.preventDefault()
+    setFormError('')
+
+    if (!formObjetivo.nombre.trim() || !formObjetivo.fecha_objetivo) {
+      setFormError('Nombre y fecha son obligatorios')
+      return
+    }
+
+    const esOtro = formObjetivo.distancia_objetivo === 'Otro'
+    if (esOtro && !formObjetivo.distancia_objetivo_manual.trim()) {
+      setFormError('Indica la distancia manual')
+      return
+    }
+
+    try {
+      setFormSaving(true)
+      await crearObjetivo({
+        atleta_id: atletaId,
+        nombre: formObjetivo.nombre.trim(),
+        distancia_objetivo: formObjetivo.distancia_objetivo,
+        ...(esOtro ? { distancia_objetivo_manual: formObjetivo.distancia_objetivo_manual.trim() } : {}),
+        fecha_objetivo: formObjetivo.fecha_objetivo,
+      })
+      setFormAtletaId(null)
+      await cargarHistorial(atletaId)
+    } catch (saveError) {
+      setFormError(saveError.message)
+    } finally {
+      setFormSaving(false)
     }
   }
 
@@ -234,6 +289,73 @@ function Atletas({ onOpenPlanificacion, onOpenHistorial }) {
                         Ver historial
                       </button>
                     </div>
+
+                    {rol === 'ENTRENADOR' && (
+                      formAtletaId === atletaId ? (
+                        <form className="objetivo-form" onSubmit={(event) => handleSubmitObjetivo(event, atletaId)}>
+                          <label>
+                            Nombre
+                            <input
+                              type="text"
+                              value={formObjetivo.nombre}
+                              onChange={(event) => setFormObjetivo((prev) => ({ ...prev, nombre: event.target.value }))}
+                            />
+                          </label>
+                          <label>
+                            Distancia
+                            <select
+                              value={formObjetivo.distancia_objetivo}
+                              onChange={(event) => setFormObjetivo((prev) => ({ ...prev, distancia_objetivo: event.target.value }))}
+                            >
+                              {DISTANCIAS_OBJETIVO.map((distancia) => (
+                                <option key={distancia} value={distancia}>{distancia}</option>
+                              ))}
+                            </select>
+                          </label>
+                          {formObjetivo.distancia_objetivo === 'Otro' && (
+                            <label>
+                              Distancia manual
+                              <input
+                                type="text"
+                                value={formObjetivo.distancia_objetivo_manual}
+                                onChange={(event) => setFormObjetivo((prev) => ({ ...prev, distancia_objetivo_manual: event.target.value }))}
+                              />
+                            </label>
+                          )}
+                          <label>
+                            Fecha objetivo
+                            <input
+                              type="date"
+                              value={formObjetivo.fecha_objetivo}
+                              onChange={(event) => setFormObjetivo((prev) => ({ ...prev, fecha_objetivo: event.target.value }))}
+                            />
+                          </label>
+                          {formError && <p role="alert">{formError}</p>}
+                          <div className="module-actions">
+                            <button className="plan-button" type="submit" disabled={formSaving}>
+                              {formSaving ? 'Guardando...' : 'Crear objetivo'}
+                            </button>
+                            <button className="plan-button" type="button" onClick={() => setFormAtletaId(null)}>
+                              Cancelar
+                            </button>
+                          </div>
+                        </form>
+                      ) : (
+                        <div className="module-actions">
+                          <button
+                            className="plan-button"
+                            type="button"
+                            disabled={objetivos.some((objetivo) => objetivo.estado === 'activo')}
+                            onClick={() => handleAbrirFormObjetivo(atletaId)}
+                          >
+                            Nuevo objetivo
+                          </button>
+                          {objetivos.some((objetivo) => objetivo.estado === 'activo') && (
+                            <span className="module-note">Ya tiene un objetivo activo</span>
+                          )}
+                        </div>
+                      )
+                    )}
 
                     {cargandoHistorial && <p>Cargando objetivos...</p>}
                     {errorHistorial && !cargandoHistorial && <p>{errorHistorial}</p>}

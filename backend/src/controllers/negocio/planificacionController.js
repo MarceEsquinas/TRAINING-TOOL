@@ -201,6 +201,7 @@ export async function registrarMarcaObjetivoDesdePlanificacion(req, res) {
       atletaId,
       objetivoId,
       ...(req.body ?? {}),
+      user: req.user,
     });
 
     return res.status(200).json({

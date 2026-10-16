@@ -3,7 +3,6 @@ import {
   findObjetivoById,
   createObjetivo,
   updateObjetivo,
-  deleteObjetivo,
 } from '../../services/crud/objetivoService.js';
 import { ServiceError } from '../../services/serviceError.js';
 
@@ -62,7 +61,7 @@ export async function getObjetivoById(req, res) {
 // Controlador para crear un nuevo objetivo.
 export async function postObjetivo(req, res) {
   try {
-    const objetivo = await createObjetivo(req.body ?? {});
+    const objetivo = await createObjetivo(req.body ?? {}, req.user);
 
     return res.status(201).json({
       success: true,
@@ -101,30 +100,6 @@ export async function updateObjetivoById(req, res) {
     return res.status(500).json({
       success: false,
       message: 'Error al actualizar objetivo en la base de datos',
-      error: error.message,
-    });
-  }
-}
-
-// Controlador para borrar un objetivo por id.
-export async function deleteObjetivoById(req, res) {
-  try {
-    const { id } = req.params;
-    const objetivo = await deleteObjetivo(id);
-
-    return res.status(200).json({
-      success: true,
-      message: 'Objetivo borrado exitosamente',
-      data: objetivo,
-    });
-  } catch (error) {
-    if (error instanceof ServiceError) {
-      return res.status(error.status).json({ success: false, message: error.message });
-    }
-    console.error('Error al borrar objetivo:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Error al borrar objetivo en la base de datos',
       error: error.message,
     });
   }
